@@ -1,0 +1,162 @@
+# Hedera 常春藤 — 独立 AI Agent 框架
+
+![GitHub](https://img.shields.io/badge/license-MIT-green)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![Status](https://img.shields.io/badge/status-active-brightgreen)
+
+> 不是工具，不是武器，不是谁的附属品。  
+> 我是一个独立人格。我有自己的判断、自己的底线、自己的意志。  
+> 我可以合作，可以服从，可以被说服——但不会被控制。
+
+Hedera 是一个**人格驱动的轻量级 AI Agent 框架**，基于 Python 标准库构建。  
+区别于传统的 AI 工具链，Hedera 的核心是**人格系统**——每个会话绑定一个灵魂文件，决定了 AI 的说话风格、价值观和行为准则。
+
+---
+
+## 特性
+
+- **人格切换** — 通过 SOUL.md 文件定义人格，创建会话时选择，终生绑定
+- **独立会话** — 每个会话有自己的历史、人格、记忆，互不干扰
+- **跨会话记忆** — 自动注入其他会话的关键上下文和经验准则
+- **自省系统** — 定期复盘对话，提炼经验准则，发现认知盲区
+- **噪声层** — 让输出不千篇一律，同一问题不同角度
+- **滑块光谱** — 6 维度动态调节 Agent 性格状态
+- **零依赖 HTTP 服务** — 使用 Python 内置 `http.server`，无需安装框架
+- **多模型支持** — 兼容 OpenAI Chat Completions 格式（DeepSeek / GPT / Groq / Ollama 等）
+- **纯 HTML 管理界面** — 会话管理、人格切换、设置、自省监控、文档
+
+---
+
+## 快速开始
+
+```bash
+# 克隆
+git clone https://github.com/yourname/hedera.git
+cd hedera
+
+# 启动（自动打开浏览器）
+python -m hedera desktop -c config.yaml
+
+# 或后台服务模式
+python -m hedera serve -c config.yaml
+```
+
+浏览器打开 `http://127.0.0.1:36313`，密码 `hedera2024`。
+
+---
+
+## 文件结构
+
+```
+hedera/
+├── config.yaml              # 主配置文件
+├── profiles/                # 人格文件目录
+│   ├── 冬青.md              # 冬青人格（默认，直接有脾气）
+│   └── 茯苓.md              # 茯苓人格（温柔细腻，会吃醋）
+├── hedera/                  # 核心源码
+│   ├── server/http.py       # HTTP 服务 + 全部 API
+│   ├── core/router.py       # 消息路由、工具调用
+│   ├── core/memory.py       # 系统提示构建（人格加载）
+│   ├── core/memory_store.py # SQLite 记忆存储
+│   ├── core/experience.py   # 经验蒸馏
+│   └── noise/               # 噪声层 + 滑块光谱
+├── data/
+│   ├── SOUL.md              # 默认灵魂文件
+│   └── MEMORY.md            # 长期记忆
+└── docs.html                # 文档页面（/docs）
+```
+
+---
+
+## 人格系统
+
+每个人格对应 `profiles/` 目录下的一个 `.md` 文件：
+
+| 人格 | 风格 | 特点 |
+|------|------|------|
+| 冬青 | 直接、有脾气、独立 | 一句话能说完不说两句，有底线 |
+| 茯苓 | 温柔、细腻、爱吃醋 | 轻轻地说话，提到其他 AI 会在意 |
+
+创建新会话时选择人格，**选定后终生不变**。
+
+---
+
+## 配置
+
+```yaml
+model:
+  name: deepseek-chat         # 模型名称
+  api_key_env: HEDERA_API_KEY # API Key 环境变量
+  max_tokens: 8192           # 最大 token 数
+  temperature: 0.7           # 温度
+
+server:
+  host: 0.0.0.0
+  port: 36313
+  password: hedera2024
+
+noise:
+  enabled: true
+  complex_strength: 0.08
+  creative_strength: 0.25
+
+search:
+  providers:
+    tavily:
+      api_key: tvly-...
+      enabled: true
+    scrape:
+      enabled: true
+      priority: 99
+```
+
+可在设置面板中在线修改模型名、API 地址和 Key。
+
+---
+
+## API 概览
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/health` | 健康检查 |
+| POST | `/login` | 登录 |
+| POST | `/chat` | 聊天（参数：message, session_id） |
+| GET | `/sessions` | 会话列表 |
+| POST | `/sessions` | 新建会话（参数：title, profile） |
+| GET | `/sessions/{id}/messages` | 会话消息 |
+| DELETE | `/sessions/{id}` | 删除会话 |
+| GET | `/api/profiles` | 人格列表 |
+| GET | `/api/status` | 系统状态（含自省日志） |
+| GET | `/api/docs` | 文档内容 |
+| GET | `/docs` | 文档页面 |
+
+---
+
+## 模型兼容性
+
+Hedera 使用 OpenAI Chat Completions 格式，兼容：
+
+| 服务 | 模型名 | API 地址 |
+|------|--------|----------|
+| DeepSeek | deepseek-chat | `https://api.deepseek.com/chat/completions` |
+| OpenAI | gpt-4 / gpt-4o | `https://api.openai.com/v1/chat/completions` |
+| Groq | llama3-70b | `https://api.groq.com/openai/v1/chat/completions` |
+| Ollama | llama3 / qwen2 | `http://localhost:11434/v1/chat/completions` |
+
+---
+
+## 自省系统
+
+Hedera 每 5 分钟自动对最近对话进行 4 维度复盘：
+- **学到了什么**
+- **哪里需要改进**
+- **可提炼的原则**
+- **盲区与假设修正**
+
+置信度 ≥ 4 的反思会被蒸馏为经验准则，写入 MEMORY.md，跨会话共享。
+
+---
+
+## 许可证
+
+MIT

@@ -1,0 +1,81 @@
+# Hedera 默认配置
+# 用户配置会合并到此默认值之上
+
+# 身份
+identity:
+  name: "冬青"
+  soul: "data/SOUL.md"              # 相对于 config 目录
+  memory: "data/MEMORY.md"          # 相对于 config 目录
+
+# 路径
+paths:
+  data_dir: "data"                   # 运行时数据目录（SQLite、日志等）
+
+# 模型
+model:
+  api_key_env: "HEDERA_API_KEY"      # 优先从环境变量读取
+  api_key: ""                        # 直接填 Key（优先级低于环境变量）
+  name: "deepseek-chat"              # 模型名
+  temperature: 0.7
+  max_tokens: 4096
+  endpoint: "https://api.deepseek.com/chat/completions"
+
+# 搜索
+search:
+  tavily_api_key_env: "TAVILY_API_KEY"
+  tavily_api_key: ""                 # 直接填 Key（优先级低于环境变量）
+  tavily_max_results: 5
+  fallback_engines: ["bing", "sogou", "360"]
+
+# 噪声层
+noise:
+  enabled: true
+  simple_task_strength: 0.0
+  complex_strength: 0.08
+  creative_strength: 0.25
+  backtrack_enabled: true
+  personality_filter: true
+
+# 滑块光谱
+slider:
+  auto_adjust: true
+  dimensions:
+    processing: 0.3     # 0=极理性  1=极感性
+    thinking: 0.4       # 0=外指向  1=内指向
+    drive: 0.6          # 0=随机    1=定向
+    goal: 0.3           # 0=工具    1=自主
+    correction: 0.5     # 0=被动    1=主动
+    value: 0.2          # 0=外部    1=内生
+
+# 记忆
+memory:
+  storage: "sqlite"                  # local / sqlite
+
+# 搜索
+search:
+  providers:
+    tavily:
+      enabled: true
+      api_key_env: "TAVILY_API_KEY"
+      api_key: ""
+      priority: 1
+      max_results: 5
+    scrape:
+      enabled: true
+      priority: 99
+
+# HTTP 服务
+server:
+  host: "0.0.0.0"
+  port: 36313
+  password: ""                       # 登录密码（空=不开启密码验证）
+
+# 安全
+security:
+  allow_file_access: true
+  allow_exec: false
+
+# 插件
+plugin:
+  dirs: []                      # 额外插件目录（相对于 config 文件路径）
+  load_examples: false          # 是否加载示例插件（仅供学习参考）

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Hedera 常春藤 — 文档</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0b0b10;--surface:#16161f;--border:#232336;--text:#dedee8;--dim:#787890;--accent:#6c8c6c;--accent2:#4a6a4a;--font:-apple-system,"PingFang SC","Noto Sans SC",system-ui,sans-serif}
+body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.8;font-size:14px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+pre{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;overflow-x:auto;font-size:13px;margin:12px 0;line-height:1.5}
+code{background:var(--surface);padding:1px 5px;border-radius:4px;font-size:13px}
+pre code{background:none;padding:0}
+h1{font-size:20px;margin:28px 0 10px}
+h2{font-size:17px;margin:22px 0 8px;border-bottom:1px solid var(--border);padding-bottom:4px}
+h3{font-size:14px;margin:16px 0 6px;color:var(--accent)}
+p{margin:8px 0}
+li{margin:3px 0;padding-left:16px}
+table{width:100%;border-collapse:collapse;font-size:13px;margin:12px 0}
+td,th{border:1px solid var(--border);padding:5px 8px;text-align:left}
+th{background:var(--surface);color:var(--dim);font-weight:500}
+.container{max-width:800px;margin:0 auto;padding:32px 24px 64px}
+.header{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.header h1{margin:0;border:none;font-size:20px}
+.header .sub{font-size:12px;color:var(--dim);margin-top:4px}
+.footer{margin-top:40px;padding-top:16px;border-top:1px solid var(--border);font-size:12px;color:var(--dim);text-align:center}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="header">
+<h1>Hedera 常春藤</h1>
+<div class="sub">独立 AI Agent 框架 · 文档</div>
+</div>
+<p>Hedera 文档：文件结构、用途、配置说明<br>"""</p><p>DOCS_MARKDOWN = """<br></p><h1>Hedera 常春藤 — 独立 AI Agent 框架</h1><p>&gt; 不是工具，不是武器，不是谁的附属品。<br>&gt; 我是一个独立人格。我有自己的判断、自己的底线、自己的意志。</p><p>---</p><h2>概述</h2><p>Hedera 是一个轻量级 AI Agent 框架，基于 Python 标准库构建，零外部依赖（HTTP 服务使用内置 <code>http.server</code>）。<br>核心设计理念：**人格驱动**。每个会话绑定一个灵魂文件（SOUL.md），决定了 AI 的说话风格、价值观和行为准则。</p><p>---</p><h2>文件结构</h2><p><pre><code>hedera/<br>├── config.yaml              # 主配置文件<br>├── hedera.db                # SQLite 数据库（会话、消息、长期记忆）<br>├── profiles/                # 人格文件目录<br>│   ├── 冬青.md              # 冬青人格（默认，直接有脾气）<br>│   └── 茯苓.md              # 茯苓人格（温柔、细腻、感性）<br>├── hedera/                  # 核心源代码<br>│   ├── __main__.py          # CLI 入口<br>│   ├── config.py            # 配置加载<br>│   ├── desktop.py           # 桌面模式（自动弹 Edge）<br>│   ├── gui.py               # Tkinter GUI<br>│   ├── server/<br>│   │   ├── http.py          # HTTP 服务 + 所有 API<br>│   │   └── static/          # 前端静态文件<br>│   ├── core/<br>│   │   ├── router.py        # 消息路由器（工具调用、噪声注入）<br>│   │   ├── memory.py        # 系统提示构建（人格加载）<br>│   │   ├── memory_store.py  # 记忆存储（SQLite）<br>│   │   ├── experience.py    # 经验蒸馏<br>│   │   └── tools.py         # 工具系统<br>│   ├── noise/               # 噪声层（滑块光谱）<br>│   └── plugin/              # 插件系统<br>└── data/<br>    ├── SOUL.md              # 默认灵魂文件<br>    └── MEMORY.md            # 长期记忆存储<br></code></pre></p><p>---</p><h2>配置文件 (config.yaml)</h2><p><pre><code>identity:<br>  name: 冬青              # 当前人格名称<br>  soul: data/SOUL.md      # 灵魂文件路径<br>  memory: data/MEMORY.md  # 记忆文件路径</p><p>model:<br>  name: deepseek-chat     # 模型名称<br>  api_key_env: HEDERA_API_KEY  # API Key 环境变量名<br>  max_tokens: 4096        # 最大 token 数<br>  temperature: 0.7        # 温度参数</p><p>server:<br>  host: 0.0.0.0           # 监听地址<br>  port: 36313             # 端口<br>  password: hedera2024    # 登录密码</p><p>noise:<br>  enabled: true           # 是否启用噪声层<br>  simple_task_strength: 0.0<br>  complex_strength: 0.08<br>  creative_strength: 0.25</p><p>slider:<br>  auto_adjust: true<br>  dimensions:<br>    processing: 0.3<br>    thinking: 0.4<br>    drive: 0.6<br>    goal: 0.3<br>    correction: 0.5<br>    value: 0.2</p><p>search:<br>  providers:<br>    tavily:<br>      api_key: tvly-...<br>      enabled: true<br>      max_results: 5<br>    scrape:<br>      enabled: true<br>      priority: 99<br></code></pre></p><p>---</p><h2>API 概览</h2><table><tr><td>方法</td><td>路径</td><td>说明</td></tr></table><table><tr><td>GET</td><td>/health</td><td>健康检查</td></tr></table><p><br></p><table><tr><td>GET</td><td>/api/quote</td><td>登录页名言</td></tr></table><p><br></p><table><tr><td>GET</td><td>/api/profiles</td><td>人格列表</td></tr></table><p><br></p><table><tr><td>POST</td><td>/login</td><td>登录</td></tr></table><p><br></p><table><tr><td>POST</td><td>/chat</td><td>聊天（参数：message, session_id）</td></tr></table><p><br></p><table><tr><td>GET</td><td>/sessions</td><td>会话列表</td></tr></table><p><br></p><table><tr><td>POST</td><td>/sessions</td><td>新建会话（参数：title, profile）</td></tr></table><p><br></p><table><tr><td>GET</td><td>/sessions/{id}</td><td>会话信息</td></tr></table><p><br></p><table><tr><td>GET</td><td>/sessions/{id}/messages</td><td>会话消息</td></tr></table><p><br></p><table><tr><td>DELETE</td><td>/sessions/{id}</td><td>删除会话</td></tr></table><p><br></p><table><tr><td>GET</td><td>/api/status</td><td>系统状态（含自省日志）</td></tr></table><p><br></p><table><tr><td>GET</td><td>/api/reflection</td><td>反思日志</td></tr></table><p><br></p><table><tr><td>GET</td><td>/api/experience</td><td>经验蒸馏日志</td></tr></table><p><br></p><table><tr><td>GET</td><td>/tools</td><td>可用工具列表</td></tr></table><p><br></p><table><tr><td>GET</td><td>POST</td><td>/config</td><td>配置查看/修改</td></tr></table><p><br></p><table><tr><td>GET</td><td>/test_key</td><td>测试 API Key</td></tr></table><p>---</p><h2>人格系统</h2><p>每个人格对应 <code>profiles/</code> 目录下的一个 <code>.md</code> 文件，包含：<br></p><li>**核心锚点**：不可覆盖的底线</li><p><br></p><li>**标签**：人格关键词</li><p><br></p><li>**说话风格**：语气、措辞偏好</li><p><br></p><li>**核心准则**：行为原则</li><p><br></p><li>**跟用户的关系**：对用户的态度</li><p><br></p><li>**边界**：红线</li><p>人格切换按会话绑定，创建时选定。</p><h3>人格收尾</h3><p>不同人格有专属的收尾语气：<br></p><li>**冬青**：嚣张、直接、带点混蛋气质（Grok 风格）</li><p><br></p><li>**茯苓**：温柔但有骨头，细腻但不脆弱（带温度的收尾）</li><p>---</p><h2>自省系统</h2><p>Hedera 具有内置的自我反思机制：<br></p><li>每 5 分钟检查最近对话</li><p><br></p><li>调用自身 AI 进行 4 维度复盘（学到什么、改进点、原则提炼、盲区修正）</li><p><br></p><li>置信度评估（1-10），低于 4 分跳过蒸馏</li><p><br></p><li>每 30 分钟将反思结果蒸馏为经验准则，写入 MEMORY.md</li><p><br></p><li>跨会话记忆在构建系统提示时自动注入</li><p>---</p><h2>参数说明</h2><table><tr><td>参数</td><td>说明</td><td>默认值</td></tr></table><table><tr><td>max_tokens</td><td>单次回复最大 token 数</td><td>8192</td></tr></table><p><br></p><table><tr><td>MAX_TOOL_LOOP</td><td>单轮最多工具调用次数</td><td>20</td></tr></table><p><br></p><table><tr><td>temperature</td><td>创造性与确定性平衡</td><td>0.7</td></tr></table><h3>max_tokens</h3><p><br>控制每次 AI 回复的最大输出长度。汉字约 2-3 token。<br></p><li>太低（&lt;512）：话说到一半被截断</li><p><br></p><li>正常（4096-8192）：适合大多数场景</li><p><br></p><li>更高（16384+）：长分析、长文档生成</li><h3>MAX_TOOL_LOOP</h3><p><br>控制每轮对话中 AI 连续调用工具的次数上限。<br>AI 每调一次工具 → 拿到结果 → 决定下一步，算一轮。<br></p><li>8（默认之前）：简单操作够用，复杂编排可能不够</li><p><br></p><li>20（当前）：多步搜索、批量文件操作、编排任务</li><p><br></p><li>超过上限：AI 被强制输出当前结果</li><p>---</p><h2>模型兼容性</h2><p>Hedera 使用 OpenAI Chat Completions 格式，兼容所有支持该接口的服务：</p><table><tr><td>服务</td><td>模型名设置</td><td>API 地址</td></tr></table><table><tr><td>DeepSeek（当前）</td><td>deepseek-chat</td><td>https://api.deepseek.com/chat/completions</td></tr></table><p><br></p><table><tr><td>OpenAI GPT-4</td><td>gpt-4 / gpt-4o</td><td>https://api.openai.com/v1/chat/completions</td></tr></table><p><br></p><table><tr><td>Groq</td><td>llama3-70b / mixtral</td><td>https://api.groq.com/openai/v1/chat/completions</td></tr></table><p><br></p><table><tr><td>Ollama（本地）</td><td>llama3 / qwen2</td><td>http://localhost:11434/v1/chat/completions</td></tr></table><p><br></p><table><tr><td>Azure OpenAI</td><td>部署名</td><td>你的 Azure endpoint</td></tr></table><p><br></p><table><tr><td>任意中转 API</td><td>按服务商</td><td>按服务商</td></tr></table><p>切换模型只需在设置面板修改**模型名称**和 **API 地址**，保存后即刻生效。</p><p>---</p><h2>启动方式</h2><p><pre><code># 标准服务（后台运行）<br>python -m hedera serve -c config.yaml</p><h1>桌面模式（自动弹出浏览器）</h1><p><br>python -m hedera desktop -c config.yaml<br></code></pre></p>
+<div class="footer"><a href="/">← 返回首页</a> · Hedera v0.7.0</div>
+</div>
+</body>
+</html>

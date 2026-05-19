@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "hedera-agent"
+version = "0.7.0"
+description = "Hedera — 有性格的 AI Agent 框架。噪声层 + 自省机制 + 工具系统。"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+keywords = ["ai", "agent", "llm", "chat", "noise", "personality"]
+authors = [
+    {name = "Lustrum", email = "2419680197@qq.com"},
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "requests>=2.28",
+    "pyyaml>=6.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/lustrum/hedera"
+"Bug Tracker" = "https://github.com/lustrum/hedera/issues"
+
+[tool.setuptools.packages.find]
+include = ["hedera*"]
+
+[tool.setuptools.package-data]
+"hedera" = ["default.yaml", "server/static/*"]
+
+[project.scripts]
+hedera = "hedera.__main__:main"

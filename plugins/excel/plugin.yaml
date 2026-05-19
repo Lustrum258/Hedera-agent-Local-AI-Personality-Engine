@@ -1,0 +1,9 @@
+# plugin.yaml — Excel 插件
+name: "Excel 助手"
+description: "创建、读取、编辑 Excel 文件。支持单元格读写、公式、工作表管理。"
+version: "1.0.0"
+author: "冬青"
+keywords: ["excel", "表格", "xlsx", "电子表格", "excel文件", "工作簿", "工作表"]
+commands: []
+priority: 90
+standalone: false

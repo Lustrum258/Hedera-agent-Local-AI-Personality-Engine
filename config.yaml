@@ -1,0 +1,39 @@
+identity:
+  memory: data/MEMORY.md
+  name: 冬青
+  soul: data/SOUL.md
+model:
+  api_key: 
+  api_key_env: HEDERA_API_KEY
+  max_tokens: 8192
+  name: deepseek-chat
+  temperature: 0.7
+noise:
+  complex_strength: 0.08
+  creative_strength: 0.25
+  enabled: true
+  simple_task_strength: 0.0
+search:
+  providers:
+    scrape:
+      enabled: true
+      priority: 99
+    tavily:
+      api_key: 
+      api_key_env: TAVILY_API_KEY
+      enabled: true
+      max_results: 5
+      priority: 1
+server:
+  host: 0.0.0.0
+  password: hedera2024
+  port: 36313
+slider:
+  auto_adjust: true
+  dimensions:
+    correction: 0.5
+    drive: 0.6
+    goal: 0.3
+    processing: 0.3
+    thinking: 0.4
+    value: 0.2

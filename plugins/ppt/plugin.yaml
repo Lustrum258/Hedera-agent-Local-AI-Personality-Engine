@@ -1,0 +1,9 @@
+# plugin.yaml — PPT 制作插件
+name: "PPT制作"
+description: "根据文字内容生成 PowerPoint 演示文稿（.pptx）"
+version: "1.0.0"
+author: "Hedera"
+keywords: ["ppt", "幻灯片", "演示文稿", "pptx", "PowerPoint", "讲稿"]
+commands: ["/ppt"]
+priority: 100
+standalone: false

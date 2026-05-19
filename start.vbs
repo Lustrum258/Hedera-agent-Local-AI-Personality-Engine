@@ -1,0 +1,1 @@
+CreateObject("WScript.Shell").Run "cmd /c cd /d """ & CreateObject("Scripting.FileSystemObject").GetParentFolderName(WScript.ScriptFullName) & """ && set PYTHONPATH=""" & CreateObject("Scripting.FileSystemObject").GetParentFolderName(WScript.ScriptFullName) & """;%PYTHONPATH% && python -m hedera serve -c config.yaml", 0, False

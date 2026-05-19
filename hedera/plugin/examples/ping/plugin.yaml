@@ -1,0 +1,9 @@
+# plugin.yaml — 示例插件
+name: "示例插件"
+description: "一个简单示例，展示插件怎么写"
+version: "1.0.0"
+author: "Hedera"
+keywords: ["示例", "测试"]
+commands: []
+priority: 200
+standalone: false
