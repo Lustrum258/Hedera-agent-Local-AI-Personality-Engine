@@ -3,7 +3,7 @@ identity:
   name: 冬青
   soul: data/SOUL.md
 model:
-  api_key: 
+  api_key: null
   api_key_env: HEDERA_API_KEY
   max_tokens: 8192
   name: deepseek-chat
@@ -19,7 +19,7 @@ search:
       enabled: true
       priority: 99
     tavily:
-      api_key: 
+      api_key: null
       api_key_env: TAVILY_API_KEY
       enabled: true
       max_results: 5
