@@ -1,9 +1,9 @@
-identity:
+﻿identity:
   memory: data/MEMORY.md
   name: 冬青
   soul: data/SOUL.md
 model:
-  api_key: null
+  api_key: sk-52e322f51244406e840ddacdba685ebd
   api_key_env: HEDERA_API_KEY
   max_tokens: 8192
   name: deepseek-chat
@@ -37,3 +37,9 @@ slider:
     processing: 0.3
     thinking: 0.4
     value: 0.2
+training:
+  enabled: true
+  module_a: true
+  module_c: true
+  module_d: true
+  pulse_interval: 300

@@ -483,7 +483,7 @@ register_tool("clear_cache", "Clear cache.", _clear_cache,
               {"type": "object", "properties": {"target": {"type": "string", "enum": ["all", "search", "fetch", "file"], "default": "all"}},
                "required": []})
 
-register_tool("create_file", "Create a download file for the user. Tell the user the download URL in your response.",
+register_tool("create_file", "Create a download file for the user (only for content >200 lines). Small code/output should be inlined in your response directly.",
               _create_download_file,
               {"type": "object", "properties": {
                   "filename": {"type": "string", "description": "文件名，如 code.py / report.md / config.yaml"},

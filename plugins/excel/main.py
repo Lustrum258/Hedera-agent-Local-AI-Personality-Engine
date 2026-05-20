@@ -480,7 +480,7 @@ class ExcelPlugin(PluginBase):
             {
                 "name": "excel_create",
                 "description": "创建新的 Excel 文件。支持设表头、写入数据。文件默认放桌面同时生成下载链接。",
-        "result_url": true,
+        "result_url": True,
                 "fn": _create_excel,
                 "parameters": {
                     "type": "object",

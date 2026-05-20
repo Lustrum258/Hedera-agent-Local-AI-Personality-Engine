@@ -27,6 +27,7 @@ from hedera.core.memory_store import MemoryStore
 from hedera.core.experience import distill_experience_once
 from hedera.core.tools import ALL_TOOL_NAMES, get_tool_descriptions
 from hedera.core.cache import search_cache, fetch_cache, file_cache
+from hedera.training.signal import SignalManager
 
 
 class HederaHandler(BaseHTTPRequestHandler):
@@ -94,6 +95,8 @@ class HederaHandler(BaseHTTPRequestHandler):
             return self._handle_clear_all_sessions()
         elif path == "/api/distill":
             return self._handle_distill()
+        elif path == "/api/training/pulse":
+            return self._handle_training_pulse()
         elif path == "/upload":
             return self._handle_upload()
         else:
@@ -451,7 +454,10 @@ class HederaHandler(BaseHTTPRequestHandler):
             else:
                 self._send_json({"response": resp, "session_id": actual_sid, "status": "ok"})
         except Exception as e:
-            self._send_json({"error": str(e)}, 500)
+            import traceback
+            tb = traceback.format_exc()
+            print("[Hedera Webhook Error]", tb)
+            self._send_json({"error": str(e), "traceback": tb}, 500)
 
     # ─── 会话 API ───
 
@@ -707,6 +713,23 @@ class HederaHandler(BaseHTTPRequestHandler):
             tools_data.append({"name": name, "description": desc, "available": True})
         return self._send_json({"tools": tools_data})
 
+    def _handle_training_pulse(self):
+        """手动触发噪声脉冲（训练协议模块B）"""
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body = json.loads(self.rfile.read(length).decode("utf-8")) if length else {}
+        except Exception:
+            body = {}
+        keyword = body.get("keyword", "")
+        source = body.get("source", "user")
+
+        signal_mgr = SignalManager(self.data_dir)
+        ok = signal_mgr.write_pulse(keyword=keyword, source=source)
+        if ok:
+            return self._send_json({"success": True, "message": f"脉冲已触发: {keyword or '随机'}"})
+        else:
+            return self._send_error(500, "写入脉冲失败")
+
     def _handle_test_key(self):
         """Test the current DeepSeek API key"""
         api_key = os.environ.get("HEDERA_API_KEY", "") or self.config.get("model", {}).get("api_key", "")
@@ -750,7 +773,7 @@ class HederaHandler(BaseHTTPRequestHandler):
         }
         providers = cfg.get("search", {}).get("providers", {})
         for name, p in providers.items():
-            key = p.get("api_key", "")
+            key = p.get("api_key", "") or ""
             masked = key[:6] + "..." + key[-4:] if len(key) > 12 else "已配置" if key else "未配置"
             result["search_providers"].append({
                 "name": name,

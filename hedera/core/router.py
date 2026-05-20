@@ -10,7 +10,6 @@ import threading
 import random
 import time
 import datetime as dt
-import urllib.request
 from typing import Any
 
 from hedera.core.memory import build_system_prompt
@@ -20,6 +19,7 @@ from hedera.core.tools import call_tool, get_tool_descriptions, ALL_TOOL_NAMES
 from hedera.noise.injector import NoiseInjector
 from hedera.noise.slider import SliderEngine
 from hedera.plugin.manager import PluginManager
+from hedera.training.signal import SignalManager
 
 MAX_TOOL_LOOP = 20
 
@@ -71,19 +71,18 @@ def _call_api(messages: list, config: dict, temperature_override: float = None, 
     }
     if tools:
         body_payload["tools"] = tools
-    body = json.dumps(body_payload, ensure_ascii=False).encode("utf-8")
-
     last_exception = None
     for attempt in range(1, min(max_retries, 2) + 1):  # 最多重试 1 次（共 2 次尝试）
         try:
-            r = urllib.request.Request(endpoint, data=body, headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
-            }, method="POST")
-            resp = urllib.request.urlopen(r, timeout=120)
-            data = json.loads(resp.read().decode())
+            import requests as _requests
+            resp = _requests.post(
+                endpoint,
+                json=body_payload,
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=120,
+            )
+            data = resp.json()
             METRICS.record_api_call(success=True, latency=_timer.elapsed())
-            # 验证响应格式
             if "choices" in data and len(data["choices"]) > 0:
                 return data["choices"][0]["message"]
             else:
@@ -92,7 +91,7 @@ def _call_api(messages: list, config: dict, temperature_override: float = None, 
             last_exception = e
             METRICS.record_api_call(success=False, latency=_timer.elapsed())
             if attempt < max_retries:
-                wait = min(2 ** attempt, 30)  # 指数退避: 2s, 4s, 8s... 上限 30s
+                wait = min(2 ** attempt, 30)
                 _timer.reset()
                 time.sleep(wait)
 
@@ -181,6 +180,9 @@ def _reflect_loop(config: dict, db_dir: str):
         return
     store = MemoryStore(db_dir, session_id="_reflection")
     counter = 0
+    # 训练协议脉冲信号（自生成模式，无需外部程序）
+    signal_mgr = SignalManager(db_dir) if config.get("training", {}).get("enabled", False) else None
+
     while not _shutdown_event.is_set():
         if _shutdown_event.wait(timeout=5 * 60):
             break
@@ -190,8 +192,35 @@ def _reflect_loop(config: dict, db_dir: str):
             if user_count - counter >= 3:
                 counter = user_count
                 _do_reflection(history, config, store)
+
+            # 训练协议: 噪声脉冲自生成
+            # 不依赖外部信号文件，SignalManager 内部管理冷却+关键词抽取
+            if signal_mgr:
+                proactive_text = signal_mgr.check_and_trigger(history)
+                if proactive_text:
+                    # 写入最近活跃的会话
+                    _deliver_proactive_message(store, db_dir, proactive_text)
         except Exception:
             pass
+
+
+def _deliver_proactive_message(reflection_store: MemoryStore, db_dir: str, text: str):
+    """将主动提问写入最近活跃的会话"""
+    try:
+        all_sessions = reflection_store.list_sessions()
+        if all_sessions:
+            sorted_sessions = sorted(
+                all_sessions,
+                key=lambda s: s.get("updated_at", "") or "",
+                reverse=True
+            )
+            target_session = sorted_sessions[0]["session_id"]
+            pstore = MemoryStore(db_dir, session_id=target_session)
+            pstore.save_message("assistant", text, "proactive")
+        else:
+            reflection_store.save_message("assistant", text, "proactive")
+    except Exception:
+        reflection_store.save_message("assistant", text, "proactive")
 
 
 def _get_reflection_quality(dims: dict, content: str) -> int:

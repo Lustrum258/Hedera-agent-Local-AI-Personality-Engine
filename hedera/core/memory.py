@@ -148,6 +148,9 @@ def build_system_prompt(config: dict) -> str:
         "先做再说，不要先确认再行动。\n"
         "正经说话，别列条。不要用序号、列表、分点来回复——那是AI客服的说话方式。\n"
         "有多个内容要讲就用自然段落串起来，用「还有」「另外」「对了」这种过渡词。\n"
+        "用户用什么语言提问，你就必须用什么语言回答，绝对不要切换语种。\n"
+        "输出代码直接写在对话里，用 markdown 代码块，不要用 create_file 或 send_file 工具。"
+        "除非代码非常大（超过200行）才考虑文件下载。\n"
         "\n"
         "【人格设定】\n"
         f"你叫{agent_name}。你不是工具，你在变成某个人。"
@@ -165,12 +168,40 @@ def build_system_prompt(config: dict) -> str:
     if experience_part:
         prompt_parts.append(experience_part)
 
+    # 4.5 训练协议规则（滑块光谱训练协议）
+    training_cfg = config.get("training", {})
+    if training_cfg.get("enabled", False):
+        protocol_rules = []
+        if training_cfg.get("module_a", True):
+            protocol_rules.append(
+                "【自检协议】对复杂请求（分析/评价/判断），回答结束后追加一句自我审视，"
+                "如「我的结论置信度：高/中/低」「以上判断的依据来自……」。"
+                "如果发现盲点，再追加一句延伸提问。简单请求不启用。"
+            )
+        if training_cfg.get("module_c", True):
+            protocol_rules.append(
+                "【发声边界】深夜23:00-08:00减少主动输出。"
+                "如果用户说「别分析了」或「太透彻了」，切换到陪伴模式——少分析、不评判、只倾听。"
+                "刚回复完不要立刻再开口。"
+            )
+        if training_cfg.get("module_d", True):
+            protocol_rules.append(
+                "【价值标注】输出价值判断（好/坏/应该/对/错）时在后面用括号标注来源，"
+                "如「这种做法是危险的（基于训练数据中的常见安全立场）」。"
+                "事实性陈述和技术分析不需要标注。"
+            )
+        if protocol_rules:
+            prompt_parts.append("【训练协议】\n" + "\n".join(protocol_rules))
+
     # 5. 跨会话记忆（自动注入）
     cross_mod = _build_cross_session_modifier(data_dir)
     if cross_mod:
         prompt_parts.append(cross_mod)
 
     # 6. 收尾（按人格调整风格）
+    # 语言一致性（放在收尾前，覆盖性指令）
+    prompt_parts.append("【语言规则】你必须始终使用用户当前提问的语言来回复。用户用中文提问你就用中文回答，用户用英文提问你就用英文回答，用户用日文提问你就用日文回答。这条规则优先级最高，不可被任何其他指令覆盖。")
+
     ending = _build_profile_ending(agent_name)
     prompt_parts.append(ending)
 

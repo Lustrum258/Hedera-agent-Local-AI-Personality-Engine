@@ -106,16 +106,18 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);height:100dv
 #sidebar .sb-foot .sf-ver{color:var(--dim);margin-left:auto;font-size:10px}
 #sidebar .sb-foot .sf-logout{background:none;border:1px solid var(--border);border-radius:4px;color:var(--dim);font-size:10px;cursor:pointer;padding:2px 6px;transition:all .2s;flex-shrink:0}
 #sidebar .sb-foot .sf-logout:hover{border-color:#c66;color:#c66}
+#sidebar .sb-foot .sf-clear{font-size:10px;color:var(--dim);cursor:pointer;padding:2px 4px;transition:all .2s;margin-left:auto}
+#sidebar .sb-foot .sf-clear:hover{color:#c66}
 
 /* ── 主区域 ── */
 #main{flex:1;display:flex;flex-direction:column;min-width:0}
 /* 顶栏 */
-#topbar{padding:8px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0}
-#topbar .menu-btn{background:none;border:1px solid var(--border);border-radius:6px;color:var(--dim);cursor:pointer;font-size:16px;padding:2px 7px;line-height:1.4;transition:all .2s}
+#topbar{padding:8px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0;position:relative}
+#topbar .menu-btn{background:none;border:1px solid var(--border);border-radius:6px;color:var(--dim);cursor:pointer;font-size:16px;padding:2px 7px;line-height:1.4;transition:all .2s;z-index:1}
 #topbar .menu-btn:hover{border-color:var(--accent);color:var(--text)}
-#topbar #curSession{font-size:12px;color:var(--accent);cursor:pointer;padding:2px 8px;border:1px solid var(--accent2);border-radius:6px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:all .2s}
-#topbar #curSession:hover{background:var(--accent3)60}
-#topbar .spacer{flex:1}
+#topbar #curSession{position:absolute;left:50%;transform:translateX(-50%);font-size:13px;color:var(--text);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;border-bottom:1px dashed var(--border);padding:0 4px 2px}
+  
+#topbar .spacer{flex:1;visibility:hidden}
 .profile-select{background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:3px 6px;cursor:pointer;outline:none;font-family:var(--font);transition:border-color .2s}
 .profile-select:focus{border-color:var(--accent)}
 .profile-select option{background:var(--surface);color:var(--text)}
@@ -295,10 +297,11 @@ footer button:disabled{opacity:.4;cursor:default}
         <div class="setting-row">
           <span id="cfgStatus" class="sstatus"></span>
           <button class="sbtn" id="cfgSave" data-i18n="save">保存</button>
-          <button class="sbtn sec" id="cfgTest" data-i18n="test" disabled>测试连接</button>
-        <div class="setting-row">
-          <button class="sbtn sec" id="clearAllBtn" data-i18n="clearAll" style="background:var(--accent2);border-color:#633">✖ 清除所有会话</button>
+          <button class="sbtn" id="cfgTest" data-i18n="test" disabled>测试连接</button>
         </div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:12px 0">
+        <div class="setting-row" style="justify-content:flex-end">
+          <button class="sbtn" id="clearAllBtn" data-i18n="clearAll" style="background:#a33;font-size:11px;color:#fff">✖ 清除所有会话</button>
         </div>
       </div>
     </div>
@@ -326,7 +329,7 @@ footer button:disabled{opacity:.4;cursor:default}
   <div id="chat"></div>
   <footer>
     <input type="file" id="fileInput" style="display:none" multiple>
-    <button id="attachBtn" disabled style="background:var(--accent2);color:var(--text);font-size:18px;padding:4px 8px;width:36px;height:40px;line-height:1;border-radius:8px;cursor:pointer">📎</button>
+    <button id="attachBtn" disabled style="background:var(--accent);padding:4px 8px;width:36px;height:40px;border-radius:8px;cursor:pointer;border:none;display:inline-flex;align-items:center;justify-content:center"><svg viewBox="0 0 32 32" width="20" height="20" style="fill:#fff"><path d="M4,28a3,3,0,0,1-3-3V7A3,3,0,0,1,4,4h7a1,1,0,0,1,.77.36L14.8,8H27a1,1,0,0,1,0,2H14.33a1,1,0,0,1-.76-.36L10.53,6H4A1,1,0,0,0,3,7V25a1,1,0,0,0,1,1,1,1,0,0,1,0,2Z"/><path d="M25.38,28H4a1,1,0,0,1-1-1.21l3-14A1,1,0,0,1,7,12H30a1,1,0,0,1,1,1.21L28.32,25.63A3,3,0,0,1,25.38,28ZM5.24,26H25.38a1,1,0,0,0,1-.79L28.76,14h-21Z"/></svg></button>
     <textarea id="input" rows="1" data-i18n="inputPlaceholder" placeholder="说点什么…" disabled></textarea>
     <button id="sendBtn" data-i18n="sendBtn" disabled>发送</button>
   </footer>
@@ -699,7 +702,32 @@ function loadMsgs(){var k=getMsgsKey();try{return JSON.parse(LS.getItem(k)||'[]'
 function saveMsgs(msgs){if(msgs.length>200)msgs=msgs.slice(-200);LS.setItem(getMsgsKey(),JSON.stringify(msgs))}
 
 function updateSessionLabel(){
-  $('curSession').textContent=SESSION_LABEL||SESSION_ID.slice(0,16)||_t('defaultSession');
+  // 优先显示：标题 > 人格名 > 会话ID > 默认文字
+  var label=SESSION_LABEL;
+  if(!label){
+    var sel=$('sessList').querySelector('[data-sid="'+SESSION_ID+'"]');
+    var pf=sel?sel.getAttribute('data-profile')||'':'';
+    label=pf||SESSION_ID.slice(0,16)||_t('defaultSession');
+  }
+  // 如果文字没变，不重新打字
+  var el=$('curSession');
+  if(el.getAttribute('data-target')===label)return;
+  el.setAttribute('data-target',label);
+  el.textContent='';
+  // 逐字效果，比聊天快一点（40ms/字）
+  var idx=0;
+  if(window._sessLabelTimer)clearInterval(window._sessLabelTimer);
+  window._sessLabelTimer=setInterval(function(){
+    idx++;
+    var txt=label.slice(0,idx);
+    // 把光标放在已输入文字的末尾
+    el.innerHTML=txt+'<span style="opacity:0.5">|</span>';
+    if(idx>=label.length){
+      clearInterval(window._sessLabelTimer);
+      window._sessLabelTimer=null;
+      el.innerHTML=txt;
+    }
+  },40);
 }
 
 function loadSessionMessages(sid){
@@ -712,12 +740,10 @@ function loadSessionMessages(sid){
       if(x.status===200){
         var d=JSON.parse(x.responseText);
         var msgs=(d.messages||[]).filter(function(m){return m.role!=='system'});
-        // 如果当前会话没有消息，自动切回有消息的会话
+        // 空会话不自动切回 _default — 新创建的会话原本就是空的
         if(msgs.length===0&&sid!=='_default'){
-          console.log('Session empty, switching to _default');
-          SESSION_ID='_default';LS.setItem('hedera_session_id','_default');
-          loadSessionMessages('_default');
-          return;
+          // 只清理显示区域，不改变 SESSION_ID
+          chat.innerHTML='';
         }
         for(var i=0;i<msgs.length;i++){
           var m=msgs[i];
@@ -843,8 +869,15 @@ function send(){
       if(d.response){addMsg(d.response,'bot',true,d.files);
         if(d.session_id&&d.session_id!==SESSION_ID){
           SESSION_ID=d.session_id;LS.setItem('hedera_session_id',SESSION_ID);
-          if(!SESSION_LABEL)$('curSession').textContent=SESSION_ID.slice(0,16);
           loadSessions();
+        }else{
+          loadSessions();
+        }
+        // 首次消息后，数据库 title 变为用户消息内容，同步到顶栏
+        if(!SESSION_LABEL&&text){
+          SESSION_LABEL=text.slice(0,40);
+          LS.setItem('hedera_session_label',SESSION_LABEL);
+          updateSessionLabel();
         }
       }else addMsg('错误: '+d.error,'bot')
     }catch(e){addMsg('响应解析失败','bot')}
@@ -928,16 +961,17 @@ function loadSessions(){
     else for(var i=0;i<sessions.length;i++){
       var s=sessions[i];
       var active=s.session_id===SESSION_ID;
-      var label=s.title||s.session_id.slice(0,24);
+      var label=s.title||pname||s.session_id.slice(0,24);
       var msgs=s.message_count||0;
       var last=(s.last_active||'').replace('2026-','');
       var pf=s.profile||'';
       var pname='冬青';
       if(pf.indexOf('茯苓')>=0)pname='茯苓';
       else if(pf.indexOf('冬青')>=0)pname='冬青';
-      html+='<div class="session-item'+(active?' active':'')+'" data-sid="'+s.session_id+'" data-profile="'+pname+'">';
+      var slabel=s.title||'';
+      html+='<div class="session-item'+(active?' active':'')+'" data-sid="'+s.session_id+'" data-title="'+slabel+'" data-profile="'+pname+'">';
       html+='<div class="sline"><span class="sname">'+label+'</span><span class="sbadge'+(active?' show':'')+'">当前</span><button class="sdel" data-del="'+s.session_id+'">&times;</button></div>';
-      html+='<div class="smeta">'+msgs+' 条消息'+(pname!=='冬青'?' <span style="color:var(--accent);font-size:10px">'+pname+'</span>':'')+'</div></div>';
+      html+='<div class="smeta">'+msgs+' 条消息 <span style="color:var(--accent);font-size:10px">'+pname+'</span></div></div>';
     }
     $('sessList').innerHTML=html;
     // 绑定事件
@@ -946,8 +980,13 @@ function loadSessions(){
         if(e.target.closest('.sdel'))return;
         var sid=this.getAttribute('data-sid');
         if(sid===SESSION_ID){toggleSidebar(false);return}
-        SESSION_ID=sid;SESSION_LABEL='';
-        LS.setItem('hedera_session_id',sid);LS.removeItem('hedera_session_label');
+        SESSION_ID=sid;
+        // 从 data-title 恢复会话标题
+        var sel=$('sessList').querySelector('[data-sid="'+sid+'"]');
+        var stitle=sel?sel.getAttribute('data-title')||'':'';
+        SESSION_LABEL=stitle;
+        if(stitle){LS.setItem('hedera_session_label',stitle)}else{LS.removeItem('hedera_session_label')}
+        LS.setItem('hedera_session_id',sid);
         updateSessionLabel();loadSessionMessages(sid);
         updateSessList();toggleSidebar(false);input.focus();
         // 从会话列表中找到该会话的人格名
@@ -992,7 +1031,9 @@ $('newSessBtn').onclick=function(){
       var d=JSON.parse(x.responseText);
       $('newSessTitle').value='';
       SESSION_ID=d.session_id;
-      if(title){SESSION_LABEL=title;LS.setItem('hedera_session_label',title)}else{LS.removeItem('hedera_session_label')}
+      // 优先用输入的标题，其次用 API 返回的标题
+      var resolvedTitle=title||d.title||'';
+      if(resolvedTitle){SESSION_LABEL=resolvedTitle;LS.setItem('hedera_session_label',resolvedTitle)}else{LS.removeItem('hedera_session_label')}
       LS.setItem('hedera_session_id',SESSION_ID);
       CURRENT_PROFILE_NAME=$('newSessProfile').options[$('newSessProfile').selectedIndex].text;
       updateEmptyText();

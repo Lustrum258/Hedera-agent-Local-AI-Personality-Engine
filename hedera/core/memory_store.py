@@ -289,11 +289,11 @@ class MemoryStore:
         conn.close()
 
     def clear_all_sessions(self) -> int:
-        """清除所有非系统会话（不删除 _ 前缀的系统会话），返回删除的会话数"""
+        """清除所有用户会话（保留系统会话），返回删除的会话数"""
         conn = self._get_conn()
-        # 找到所有用户会话
+        # 找到所有用户会话（显式排除已知系统会话，不依赖前缀判断）
         rows = conn.execute(
-            "SELECT session_id FROM sessions WHERE session_id NOT LIKE '_%'"
+            "SELECT session_id FROM sessions WHERE session_id NOT IN ('_api', '_reflection')"
         ).fetchall()
         count = len(rows)
         for (sid,) in rows:
