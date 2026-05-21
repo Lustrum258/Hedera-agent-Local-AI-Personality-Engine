@@ -3,7 +3,7 @@
   name: 冬青
   soul: data/SOUL.md
 model:
-  api_key: sk-52e322f51244406e840ddacdba685ebd
+  api_key:
   api_key_env: HEDERA_API_KEY
   max_tokens: 8192
   name: deepseek-chat
