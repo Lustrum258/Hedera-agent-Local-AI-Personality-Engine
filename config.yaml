@@ -1,10 +1,21 @@
-﻿identity:
+identity:
   memory: data/MEMORY.md
   name: 冬青
   soul: data/SOUL.md
+image_gen:
+  api_key: null
+  api_key_env: HEDERA_IMAGE_KEY
+  enabled: true
+  endpoint: https://cdn.sta1n.cn
+  model: gpt-image-2
+  n: 1
+  provider: openai
+  quality: standard
+  size: 1024x1024
 model:
-  api_key:
+  api_key: null
   api_key_env: HEDERA_API_KEY
+  endpoint: https://api.deepseek.com/chat/completions
   max_tokens: 8192
   name: deepseek-chat
   temperature: 0.7
@@ -43,3 +54,10 @@ training:
   module_c: true
   module_d: true
   pulse_interval: 300
+tts:
+  api_key: null
+  api_key_env: HEDERA_TTS_KEY
+  enabled: true
+  endpoint: https://api.xiaomimimo.com/v1/chat/completions
+  model: mimo-v2.5-tts
+  voice: 冰糖

@@ -174,6 +174,37 @@ _experience_log = []
 _last_distill_time = 0  # 上次蒸馏时间戳，用于冷却
 _shutdown_event = threading.Event()
 
+# 自提问无回答计数器
+_proactive_unanswered = 0
+_PROACTIVE_MAX_UNANSWERED = 3
+
+# 工具调用进度存储（供前端轮询）
+_tool_progress: dict[str, dict] = {}
+_tool_progress_lock = threading.Lock()
+
+
+def set_tool_progress(req_id: str, name: str, args: dict, result: dict):
+    """记录一次工具调用进度"""
+    with _tool_progress_lock:
+        _tool_progress[req_id] = {
+            "name": name,
+            "args": dict(args) if args else {},
+            "status": "success" if result.get("success") else "error",
+            "error": result.get("error", "")[:100] if not result.get("success") else "",
+        }
+
+
+def get_tool_progress(req_id: str) -> dict:
+    """获取工具调用进度"""
+    with _tool_progress_lock:
+        return _tool_progress.get(req_id, {})
+
+
+def clear_tool_progress(req_id: str):
+    """清除进度记录"""
+    with _tool_progress_lock:
+        _tool_progress.pop(req_id, None)
+
 
 def _reflect_loop(config: dict, db_dir: str):
     if _shutdown_event.wait(timeout=60):  # 初始等待60s，可被 shutdown 提前中断
@@ -204,8 +235,29 @@ def _reflect_loop(config: dict, db_dir: str):
             pass
 
 
+def _last_proactive_was_answered(pstore) -> bool:
+    """检查目标会话中，最近一条 proactive 消息之后是否有用户回复"""
+    try:
+        history = pstore.get_recent_history(limit=50)
+        last_proactive_idx = None
+        for i in range(len(history) - 1, -1, -1):
+            if history[i].get("task_type") == "proactive":
+                last_proactive_idx = i
+                break
+        if last_proactive_idx is None:
+            return True  # 没有历史 proactive 消息，算已回答（初始状态）
+        # 检查 proactive 之后是否有 user 消息
+        for i in range(last_proactive_idx + 1, len(history)):
+            if history[i]["role"] == "user":
+                return True
+        return False
+    except Exception:
+        return True  # 查不到就保守归零
+
+
 def _deliver_proactive_message(reflection_store: MemoryStore, db_dir: str, text: str):
-    """将主动提问写入最近活跃的会话"""
+    """将主动提问写入最近活跃的会话（含无回答限制）"""
+    global _proactive_unanswered
     try:
         all_sessions = reflection_store.list_sessions()
         if all_sessions:
@@ -216,9 +268,27 @@ def _deliver_proactive_message(reflection_store: MemoryStore, db_dir: str, text:
             )
             target_session = sorted_sessions[0]["session_id"]
             pstore = MemoryStore(db_dir, session_id=target_session)
-            pstore.save_message("assistant", text, "proactive")
         else:
-            reflection_store.save_message("assistant", text, "proactive")
+            pstore = reflection_store
+
+        # 检查上次提问是否被回答
+        if _last_proactive_was_answered(pstore):
+            _proactive_unanswered = 0
+        else:
+            _proactive_unanswered += 1
+
+        # 连续无回答达到上限 → 跳过，不再提问
+        if _proactive_unanswered >= _PROACTIVE_MAX_UNANSWERED:
+            from hedera.core.logger import info as _li
+            _li("Proactive skipped: 3 unanswered", count=_proactive_unanswered)
+            reflection_store.save_message(
+                "system",
+                f"[自提问] 跳过：连续{_proactive_unanswered}次无回答",
+                "proactive_skip",
+            )
+            return
+
+        pstore.save_message("assistant", text, "proactive")
     except Exception:
         reflection_store.save_message("assistant", text, "proactive")
 
@@ -517,11 +587,12 @@ def delete_session(session_id: str) -> dict:
     return {"status": "deleted", "session_id": session_id}
 
 
-def process_message(message: str, config: dict, session_id: str = None) -> tuple:
+def process_message(message: str, config: dict, session_id: str = None, on_tool_call: callable = None) -> tuple:
     """
     处理消息，返回 (response_content, session_id, files)。
     files 为该轮生成的下载文件列表。
     支持多会话：每请求使用独立的噪声/滑块实例，无全局锁。
+    on_tool_call: 可选回调，在每次工具调用后触发，参数为 (name, args, result)。
     """
     global _last_system_prompt, _store, _reflection_thread, _plugin_manager, _session_stores
     # 每请求独立实例，避免全局状态竞争
@@ -696,6 +767,20 @@ def process_message(message: str, config: dict, session_id: str = None) -> tuple
             # 先查核心工具，再查插件工具
             tool_result = call_tool(func_name, func_args)
 
+            # 记录 generate_image 的 markdown 结果，用于注入回复
+            if func_name == "generate_image" and tool_result.get("success") and tool_result.get("markdown"):
+                try:
+                    _call_api._last_img_markdown = tool_result["markdown"]
+                except Exception:
+                    pass
+
+            # 实时回调 + 进度存储：通知前端工具调用进度
+            if on_tool_call:
+                try:
+                    on_tool_call(func_name, func_args, tool_result)
+                except Exception:
+                    pass
+
             # 仅在核心工具"不存在"时才 fallback 到插件层
             # （而非在执行失败时也 fallback — 否则会丢失真实错误信息）
             if (not tool_result.get("success")
@@ -783,6 +868,19 @@ def process_message(message: str, config: dict, session_id: str = None) -> tuple
             merge_msgs = [{"role": "system", "content": system_text}, {"role": "user", "content": merge_prompt}]
             merge_result = _call_api(merge_msgs, config)
             final_content = merge_result.get("content", final_content)
+
+    # 如果本轮调用了 generate_image 并成功了，把 markdown 图片注入回复开头
+    if hasattr(_call_api, '_last_img_markdown') and _call_api._last_img_markdown:
+        md = _call_api._last_img_markdown
+        if md not in final_content:
+            final_content = md + "\n\n" + final_content
+        _call_api._last_img_markdown = None
+    if hasattr(_call_api, '_last_img_markdown'):
+        _call_api._last_img_markdown = None
+
+    # 用户发了消息 → 重置自提问无回答计数
+    global _proactive_unanswered
+    _proactive_unanswered = 0
 
     # 先保存用户消息（如果后面崩了至少用户说了什么还在）
     store.save_message("user", message, task_type)

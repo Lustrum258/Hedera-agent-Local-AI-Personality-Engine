@@ -1,4 +1,4 @@
-"""
+﻿"""
 Hedera HTTP 服务
 基于 Python 内置 http.server，零依赖 Web 服务。
 """
@@ -48,6 +48,13 @@ class HederaHandler(BaseHTTPRequestHandler):
                     _setup_api_keys(self.config)
                 except Exception:
                     pass
+                # 热重载图像生成配置
+                from hedera.core.tools import set_image_gen_config, set_model_endpoint
+                try:
+                    set_image_gen_config(self.config.get("image_gen", {}))
+                    set_model_endpoint(self.config.get("model", {}).get("endpoint", ""))
+                except Exception:
+                    pass
                 new_pwd = self.config.get("server", {}).get("password", "")
                 from hedera.core.logger import info as _li
                 _li("Config hot-reloaded", password_changed=bool(old_pwd and old_pwd != new_pwd))
@@ -72,7 +79,7 @@ class HederaHandler(BaseHTTPRequestHandler):
         from hedera.core.logger import METRICS
         METRICS.record_request()
         self._refresh_config()
-        path = self.path.rstrip("/")
+        path = self.path.split("?")[0].rstrip("/")
         if path == "/login":
             return self._handle_login()
         if path == "/config/reload":
@@ -97,6 +104,10 @@ class HederaHandler(BaseHTTPRequestHandler):
             return self._handle_distill()
         elif path == "/api/training/pulse":
             return self._handle_training_pulse()
+        elif path == "/test_conn":
+            return self._handle_test_conn()
+        elif path == "/api/tts":
+            return self._handle_tts()
         elif path == "/upload":
             return self._handle_upload()
         else:
@@ -122,23 +133,28 @@ class HederaHandler(BaseHTTPRequestHandler):
         from hedera.core.logger import METRICS
         METRICS.record_request()
         self._refresh_config()
+        _path_no_qs = self.path.split("?")[0].rstrip("/")
         # 带 session_id 参数的路由需先解析路径
-        parsed = _re.match(r"^/sessions/([^/]+)/messages$", self.path.rstrip("/"))
+        parsed = _re.match(r"^/sessions/([^/]+)/messages$", _path_no_qs)
         if parsed:
             if not self._require_auth():
                 return
             return self._handle_get_session_messages(parsed.group(1))
 
-        parsed = _re.match(r"^/sessions/([^/]+)$", self.path.rstrip("/"))
+        parsed = _re.match(r"^/sessions/([^/]+)$", _path_no_qs)
         if parsed:
             if not self._require_auth():
                 return
             return self._handle_get_session(parsed.group(1))
 
         # 简单路径路由
-        path = self.path.rstrip("/")
+        path = _path_no_qs
         if path == "/health":
             return self._send_json({"status": "ok", "name": "hedera", "version": "0.7.0"})
+        if path == "/chat/progress":
+            if not self._require_auth():
+                return
+            return self._handle_chat_progress()
         if path == "/api/quote":
             return self._handle_quote()
         if path == "/api/docs":
@@ -427,11 +443,181 @@ class HederaHandler(BaseHTTPRequestHandler):
         if not msg:
             return self._send_json({"error": "empty message"}, 400)
         session_id = data.get("session_id", None)
+        req_id = str(uuid.uuid4())[:8]
         try:
-            resp, actual_sid, files = process_message(msg, config=self.config, session_id=session_id)
-            self._send_json({"response": resp, "session_id": actual_sid, "status": "ok", "files": files})
+            # 流式 ndjson：实时汇报工具调用
+            self.send_response(200)
+            self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("X-Request-Id", req_id)
+            self.end_headers()
+
+            from hedera.core.router import set_tool_progress, clear_tool_progress
+
+            def _write_progress(name, args, result):
+                status = "success" if result.get("success") else "error"
+                ev = {"type": "tool", "name": name, "args": dict(args), "status": status}
+                if status == "error":
+                    ev["error"] = result.get("error", "")[:100]
+                # ndjson 流
+                self.wfile.write((json.dumps(ev, ensure_ascii=False) + "\n").encode("utf-8"))
+                self.wfile.flush()
+                # 进度存储（供轮询）
+                set_tool_progress(req_id, name, args, result)
+
+            resp, actual_sid, files = process_message(
+                msg, config=self.config, session_id=session_id,
+                on_tool_call=_write_progress
+            )
+            result_ev = {"type": "result", "response": resp, "session_id": actual_sid, "files": files}
+            self.wfile.write((json.dumps(result_ev, ensure_ascii=False) + "\n").encode("utf-8"))
+            self.wfile.flush()
+            clear_tool_progress(req_id)
         except Exception as e:
-            self._send_json({"error": str(e)}, 500)
+            try:
+                err_ev = {"type": "error", "error": str(e)}
+                self.wfile.write((json.dumps(err_ev, ensure_ascii=False) + "\n").encode("utf-8"))
+                self.wfile.flush()
+            except Exception:
+                pass
+
+    def _handle_tts(self):
+        """TTS 语音合成：接收文本，返回本地音频文件 URL"""
+        data = self._parse_body()
+        if not data or not data.get("text"):
+            return self._send_json({"error": "missing text"}, 400)
+        text = data["text"].strip()[:2000]
+        if not text:
+            return self._send_json({"error": "empty text"}, 400)
+
+        cfg = self.config.get("tts", {})
+        if not cfg.get("enabled", False) or not cfg.get("api_key", ""):
+            return self._send_json({"error": "TTS API 未配置"}, 400)
+
+        api_key = cfg["api_key"] or os.environ.get(cfg.get("api_key_env", ""), "")
+        endpoint = cfg.get("endpoint", "") or self.config.get("model", {}).get("endpoint", "")
+        model = cfg.get("model", "tts-1")
+        voice = cfg.get("voice", "alloy")
+
+        try:
+            import requests as _req
+            audio_data = None
+
+            # 根据 endpoint 类型选择请求模式
+            if "/chat/completions" in endpoint:
+                # Mimo TTS 格式：文本放 assistant，认证用 api-key 头
+                ep = endpoint.rstrip("/")
+                payload = {
+                    "model": model,
+                    "messages": [
+                        {"role": "user", "content": "用自然流畅的语气朗读，语速适中"},
+                        {"role": "assistant", "content": text}
+                    ],
+                    "audio": {
+                        "format": "wav",
+                        "voice": voice or "mimo_default"
+                    }
+                }
+                resp = _req.post(ep, json=payload,
+                    headers={"api-key": api_key, "Content-Type": "application/json"},
+                    timeout=30)
+                resp.raise_for_status()
+                resp_data = resp.json()
+                try:
+                    msg = resp_data["choices"][0]["message"]
+                    # 取 audio.data（base64 编码的 WAV 音频）
+                    if "audio" in msg and "data" in msg["audio"]:
+                        import base64
+                        raw_b64 = msg["audio"]["data"].strip()
+                        raw_b64 = raw_b64.replace("\n", "").replace("\r", "").replace(" ", "")
+                        raw_b64 += "=" * ((4 - len(raw_b64) % 4) % 4)
+                        audio_data = base64.b64decode(raw_b64)
+                except (KeyError, IndexError) as e:
+                    pass
+            else:
+                # audio/speech 模式：直接请求二进制音频
+                ep = endpoint.replace("/chat/completions", "/audio/speech").rstrip("/")
+                if not ep.endswith("/audio/speech"):
+                    ep = ep.rstrip("/") + "/v1/audio/speech"
+                resp = _req.post(ep,
+                    json={"model": model, "input": text, "voice": voice, "response_format": "mp3"},
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                    timeout=30)
+                resp.raise_for_status()
+                audio_data = resp.content
+
+            if audio_data is None:
+                return self._send_json({"error": "未能获取音频数据"}, 500)
+
+            import uuid
+            ext = ".wav" if audio_data[:4] == b"RIFF" else ".mp3"
+            fname = f"tts_{uuid.uuid4().hex[:12]}{ext}"
+            sess_dir = os.path.join(self._get_uploads_dir(), "_common")
+            os.makedirs(sess_dir, exist_ok=True)
+            local_path = os.path.join(sess_dir, fname)
+            with open(local_path, "wb") as f:
+                f.write(audio_data)
+
+            return self._send_json({"status": "ok", "url": f"/download/_common/{fname}"})
+        except Exception as e:
+            return self._send_json({"error": str(e)[:200]}, 500)
+
+    def _handle_test_conn(self):
+        """测试连接：LLM / 图片 / TTS"""
+        data = self._parse_body()
+        if not data or not data.get("cat") or not data.get("fields"):
+            return self._send_json({"error": "missing params"}, 400)
+        cat = data["cat"]
+        fields = data["fields"]
+        try:
+            import requests as _req
+            if cat == "llm":
+                ep = fields.get("cfgModelEndpoint", "") or "https://api.deepseek.com/chat/completions"
+                key = fields.get("cfgModelKey", "")
+                r = _req.post(ep, json={"model": fields.get("cfgModelName", "deepseek-chat"), "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1},
+                    headers={"Authorization": f"Bearer {key}"}, timeout=10)
+                r.raise_for_status()
+                return self._send_json({"ok": True})
+            elif cat == "img":
+                ep = fields.get("cfgImgEndpoint", "")
+                key = fields.get("cfgImgKey", "")
+                if not ep: ep = self.config.get("model", {}).get("endpoint", "https://api.openai.com/v1")
+                # Try chat/completions with image model
+                ep_chat = ep.rstrip("/") + "/v1/chat/completions" if "/chat/completions" not in ep else ep
+                r = _req.post(ep_chat, json={"model": fields.get("cfgImgModel", "dall-e-3"), "messages": [{"role": "user", "content": "test"}], "max_tokens": 1},
+                    headers={"Authorization": f"Bearer {key}"}, timeout=15)
+                r.raise_for_status()
+                return self._send_json({"ok": True})
+            elif cat == "tts":
+                ep = fields.get("cfgTtsEndpoint", "")
+                key = fields.get("cfgTtsKey", "")
+                model = fields.get("cfgTtsModel", "tts-1")
+                voice = fields.get("cfgTtsVoice", "alloy")
+                if not ep: ep = self.config.get("model", {}).get("endpoint", "")
+                if "/chat/completions" in ep:
+                    r = _req.post(ep, json={"model": model, "messages": [{"role": "user", "content": "test"}, {"role": "assistant", "content": ""}], "audio": {"format": "wav", "voice": voice or "mimo_default"}},
+                        headers={"api-key": key}, timeout=15)
+                    r.raise_for_status()
+                    return self._send_json({"ok": True})
+                return self._send_json({"error": "TTS endpoint not supported"}, 400)
+            else:
+                return self._send_json({"error": "unknown category"}, 400)
+        except Exception as e:
+            return self._send_json({"error": str(e)[:150]}, 400)
+
+    def _handle_chat_progress(self):
+        """轮询查询当前工具调用进度"""
+        from urllib.parse import urlparse, parse_qs
+        qs = parse_qs(urlparse(self.path).query)
+        req_id = (qs.get("req") or [None])[0]
+        if not req_id:
+            return self._send_json({"error": "missing req"}, 400)
+        from hedera.core.router import get_tool_progress
+        prog = get_tool_progress(req_id)
+        if prog:
+            return self._send_json(prog)
+        return self._send_json({"status": "idle"})
 
     def _handle_webhook(self):
         data = self._parse_body()
@@ -765,11 +951,29 @@ class HederaHandler(BaseHTTPRequestHandler):
         cfg = self.config
         model_key = cfg.get("model", {}).get("api_key", "")
         model_masked = model_key[:6] + "..." + model_key[-4:] if len(model_key) > 12 else "已配置" if model_key else "未配置"
+        img_cfg = cfg.get("image_gen", {})
+        img_key = img_cfg.get("api_key", "") or ""
+        img_masked = img_key[:6] + "..." + img_key[-4:] if len(img_key) > 12 else "已配置" if img_key else "未配置"
+        tts_cfg = cfg.get("tts", {})
+        tts_key = tts_cfg.get("api_key", "") or ""
+        tts_masked = tts_key[:6] + "..." + tts_key[-4:] if len(tts_key) > 12 else "已配置" if tts_key else "未配置"
         result = {
             "identity": {"name": cfg.get("identity", {}).get("name", "")},
             "model": {"name": cfg.get("model", {}).get("name", ""), "endpoint": cfg.get("model", {}).get("endpoint", ""), "api_key_masked": model_masked},
             "server": {"port": cfg.get("server", {}).get("port", 36313)},
             "search_providers": [],
+            "tts": {
+                "enabled": tts_cfg.get("enabled", False),
+                "model": tts_cfg.get("model", "tts-1"),
+                "voice": tts_cfg.get("voice", "alloy"),
+                "api_key_masked": tts_masked,
+            },
+            "image_gen": {
+                "model": img_cfg.get("model", "dall-e-3"),
+                "endpoint": img_cfg.get("endpoint", "https://api.openai.com/v1/images/generations"),
+                "size": img_cfg.get("size", "1024x1024"),
+                "api_key_masked": img_masked,
+            },
         }
         providers = cfg.get("search", {}).get("providers", {})
         for name, p in providers.items():
@@ -811,6 +1015,34 @@ class HederaHandler(BaseHTTPRequestHandler):
                         env = providers[key_name].get("api_key_env", "")
                         if env:
                             os.environ[env] = key_value
+        # Update image gen config
+        if "image_gen_key" in data and data["image_gen_key"]:
+            self.config.setdefault("image_gen", {})["api_key"] = data["image_gen_key"]
+            updates.append("image_gen.api_key")
+            env_name = self.config["image_gen"].get("api_key_env", "HEDERA_IMAGE_KEY")
+            os.environ[env_name] = data["image_gen_key"]
+            from hedera.core.tools import set_image_gen_config, set_model_endpoint
+            set_image_gen_config(self.config.get("image_gen", {}))
+            set_model_endpoint(self.config.get("model", {}).get("endpoint", ""))
+        if "image_gen_model" in data and data["image_gen_model"]:
+            self.config.setdefault("image_gen", {})["model"] = data["image_gen_model"]
+            updates.append("image_gen.model")
+        if "image_gen_endpoint" in data and data["image_gen_endpoint"]:
+            self.config.setdefault("image_gen", {})["endpoint"] = data["image_gen_endpoint"]
+            updates.append("image_gen.endpoint")
+        # Update TTS config
+        if "tts_key" in data and data["tts_key"]:
+            self.config.setdefault("tts", {})["api_key"] = data["tts_key"]
+            updates.append("tts.api_key")
+        if "tts_model" in data and data["tts_model"]:
+            self.config.setdefault("tts", {})["model"] = data["tts_model"]
+            updates.append("tts.model")
+        if "tts_voice" in data and data["tts_voice"]:
+            self.config.setdefault("tts", {})["voice"] = data["tts_voice"]
+            updates.append("tts.voice")
+        if "tts_endpoint" in data and data["tts_endpoint"]:
+            self.config.setdefault("tts", {})["endpoint"] = data["tts_endpoint"]
+            updates.append("tts.endpoint")
         # Save to disk - always use CWD config.yaml
         try:
             import yaml
@@ -831,11 +1063,25 @@ class HederaHandler(BaseHTTPRequestHandler):
                             disk_cfg.setdefault("model", {})["name"] = self.config["model"]["name"]
                         elif u == "model.endpoint":
                             disk_cfg.setdefault("model", {})["endpoint"] = self.config["model"]["endpoint"]
+                        elif u == "tts.api_key":
+                            disk_cfg.setdefault("tts", {})["api_key"] = self.config["tts"]["api_key"]
+                        elif u == "tts.model":
+                            disk_cfg.setdefault("tts", {})["model"] = self.config["tts"]["model"]
+                        elif u == "tts.voice":
+                            disk_cfg.setdefault("tts", {})["voice"] = self.config["tts"]["voice"]
+                        elif u == "tts.endpoint":
+                            disk_cfg.setdefault("tts", {})["endpoint"] = self.config["tts"]["endpoint"]
                         elif u.startswith("search."):
                             parts = u.split(".")
                             if len(parts) == 3:
                                 disk_cfg.setdefault("search", {}).setdefault("providers", {}).setdefault(parts[1], {})["api_key"] = \
                                     self.config["search"]["providers"][parts[1]]["api_key"]
+                        elif u == "image_gen.api_key":
+                            disk_cfg.setdefault("image_gen", {})["api_key"] = self.config["image_gen"]["api_key"]
+                        elif u == "image_gen.model":
+                            disk_cfg.setdefault("image_gen", {})["model"] = self.config["image_gen"]["model"]
+                        elif u == "image_gen.endpoint":
+                            disk_cfg.setdefault("image_gen", {})["endpoint"] = self.config["image_gen"]["endpoint"]
                     with open(p, "w", encoding="utf-8") as f:
                         yaml.dump(disk_cfg, f, allow_unicode=True, default_flow_style=False)
                     break
@@ -869,6 +1115,11 @@ def run_server(config_path: str):
     # 设置 API Key 环境变量（从配置读取，供 tools.py 使用）
     _setup_api_keys(config)
 
+    # 注入图像生成配置到 tools 模块
+    from hedera.core.tools import set_image_gen_config, set_model_endpoint
+    set_image_gen_config(config.get("image_gen", {}))
+    set_model_endpoint(config.get("model", {}).get("endpoint", ""))
+
     # 配置 handler
     config["__hedera__"]["config_path"] = config_path
 
@@ -880,6 +1131,7 @@ def run_server(config_path: str):
     password = config.get("server", {}).get("password", "")
 
     server = ThreadingHTTPServer((host, port), HederaHandler)
+    server.timeout = 5  # 线程池空闲超时，5秒无请求自动回收线程
 
     from hedera.core.logger import info as _linfo
     _linfo("Server started", host=host, port=port, has_password=bool(password),
@@ -908,4 +1160,18 @@ def _setup_api_keys(config: dict):
         api_key = cfg.get("api_key", "")
         if key_env and api_key:
             os.environ[key_env] = api_key
+
+    # 图像生成
+    img_cfg = config.get("image_gen", {})
+    img_key_env = img_cfg.get("api_key_env", "")
+    img_api_key = img_cfg.get("api_key", "")
+    if img_key_env and img_api_key:
+        os.environ[img_key_env] = img_api_key
+
+    # TTS
+    tts_cfg = config.get("tts", {})
+    tts_key_env = tts_cfg.get("api_key_env", "")
+    tts_api_key = tts_cfg.get("api_key", "")
+    if tts_key_env and tts_api_key:
+        os.environ[tts_key_env] = tts_api_key
 

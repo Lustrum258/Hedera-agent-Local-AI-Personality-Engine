@@ -3,7 +3,7 @@ Hedera 工具系统
 结构化工具调用，插件架构。
 """
 
-import os, sys, json, subprocess, re, threading, uuid, urllib.parse, html as html_mod
+import os, sys, json, subprocess, re, threading, uuid, urllib, html as html_mod
 from html.parser import HTMLParser
 from typing import Callable
 
@@ -109,6 +109,8 @@ def _exec_shell(cmd: str, timeout: int = 30) -> dict:
     try:
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True,
                                 timeout=timeout, encoding="utf-8", errors="replace")
+        # 执行完成后清理临时脚本文件
+        _cleanup_temp_scripts()
         return {
             "stdout": truncate_output(result.stdout),
             "stderr": truncate_output(result.stderr),
@@ -116,9 +118,25 @@ def _exec_shell(cmd: str, timeout: int = 30) -> dict:
             "success": result.returncode == 0,
         }
     except subprocess.TimeoutExpired:
+        _cleanup_temp_scripts()
         return {"stdout": "", "stderr": f"超时（{timeout}s）", "returncode": -1, "success": False}
     except Exception as e:
+        _cleanup_temp_scripts()
         return {"stdout": "", "stderr": str(e), "returncode": -1, "success": False}
+
+
+def _cleanup_temp_scripts():
+    """清理项目根目录下的临时脚本文件"""
+    project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    patterns = ["test_*.py", "fix_*.py", "check_*.py", "cleanup*.py",
+                "add_*.py", "remove_*.py", "move_*.py", "rm_*.py"]
+    import glob
+    for pat in patterns:
+        for f in glob.glob(os.path.join(project_dir, pat)):
+            try:
+                os.remove(f)
+            except Exception:
+                pass
 
 
 def _write_file(path: str, content: str) -> dict:
@@ -490,6 +508,206 @@ register_tool("create_file", "Create a download file for the user (only for cont
                   "content": {"type": "string", "description": "文件内容"},
                },
                "required": ["filename", "content"]})
+
+# ─── 图像生成 ───────────
+
+_IMAGE_GEN_CONFIG = {}
+_MODEL_ENDPOINT = ""
+
+
+def set_image_gen_config(cfg: dict):
+    """由 HTTP server 在启动时注入图像生成配置"""
+    global _IMAGE_GEN_CONFIG
+    _IMAGE_GEN_CONFIG = cfg
+
+
+def set_model_endpoint(endpoint: str):
+    """注入模型 API endpoint"""
+    global _MODEL_ENDPOINT
+    _MODEL_ENDPOINT = endpoint
+
+
+def _generate_image(prompt: str, size: str = "") -> dict:
+    """
+    根据文本描述生成图像。
+    配置在 config.yaml 的 image_gen 节设置。
+    """
+    cfg = _IMAGE_GEN_CONFIG or {}
+    if not cfg.get("enabled", True):
+        return {"success": False, "error": "图像生成未启用，请在 config.yaml 中配置 image_gen"}
+
+    # endpoint: 优先用 image_gen.endpoint，否则用模型 endpoint（chat completions）
+    raw_ep = cfg.get("endpoint", "") or _MODEL_ENDPOINT or "https://api.openai.com/v1/chat/completions"
+    endpoint = raw_ep
+    # 裸域名/base URL 没有 /chat/completions 路径时补上
+    if not any(p in endpoint for p in ["/chat/completions", "/images/generations"]):
+        endpoint = endpoint.rstrip("/") + "/v1/chat/completions"
+    api_key = cfg.get("api_key", "") or os.environ.get(cfg.get("api_key_env", ""), "")
+    model = cfg.get("model", "dall-e-3")
+    n = cfg.get("n", 1)
+    size = size or cfg.get("size", "1024x1024")
+
+    if not api_key:
+        return {"success": False, "error": "图像生成 API Key 未配置"}
+
+    try:
+        import requests
+        # 构建备选端点列表：先试 chat/completions，再试 images/generations
+        eps_to_try = [endpoint]
+        if "/chat/completions" in endpoint:
+            alt = endpoint.replace("/chat/completions", "/images/generations")
+            if alt != endpoint:
+                eps_to_try.append(alt)
+        elif "/images/generations" in endpoint:
+            alt = endpoint.replace("/images/generations", "/chat/completions")
+            if alt != endpoint:
+                eps_to_try.append(alt)
+
+        last_err = ""
+        resp_data = None
+        for ep in eps_to_try:
+            # 根据端点类型选择正确的 payload 格式
+            is_img_endpoint = "/images/" in ep or "/v1/images/" in ep
+            if is_img_endpoint:
+                payload = {
+                    "model": model,
+                    "prompt": prompt,
+                    "n": n,
+                    "size": size,
+                }
+            else:
+                payload = {
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 1024,
+                }
+            try:
+                resp = requests.post(
+                    ep,
+                    json=payload,
+                    headers={
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    timeout=120,
+                )
+                resp.raise_for_status()
+                resp_data = resp.json()
+                break
+            except Exception as e:
+                last_err = str(e)
+                continue
+
+        if resp_data is None:
+            return {"success": False, "error": f"所有端点均失败: {last_err[:150]}"}
+        data = resp_data
+
+        images = []
+        content = ""
+
+        # 解析 chat completions 格式（choices[0].message.content）
+        try:
+            content = data["choices"][0]["message"]["content"]
+        except (KeyError, IndexError):
+            pass
+
+        if content:
+            # 从 content 提取 HTTP 图片 URL 和 base64 data URI
+            import re
+            http_urls = re.findall(r'https?://[^\s"<>]+(?:\.png|\.jpg|\.jpeg|\.gif|\.webp)', content)
+            for u in http_urls:
+                images.append(u)
+            # 提取 data URI（data:image/...;base64,...）
+            data_uris = re.findall(r'data:image/[^;]+;base64,[A-Za-z0-9+/=]+', content)
+            for du in data_uris:
+                images.append(du)
+
+        # 其次解析 images/generations 格式
+        if not images:
+            for item in data.get("data", []):
+                url = item.get("url", "")
+                b64 = item.get("b64_json", "")
+                if url:
+                    images.append(url)
+                elif b64:
+                    images.append(f"data:image/png;base64,{b64}")
+
+        if images:
+            # 下载/解码图片到本地上传目录（绕过 Control UI 外域/跨域拦截）
+            local_urls = []
+            for img_url in images:
+                try:
+                    if img_url.startswith("data:"):
+                        # base64 data URI → 解码存本地
+                        import base64 as _b64
+                        raw_b64 = img_url.split(",", 1)[1].strip()
+                        # 去掉可能存在的换行和空白
+                        raw_b64 = raw_b64.replace("\n", "").replace("\r", "").replace(" ", "")
+                        # 补全 padding
+                        raw_b64 += "=" * ((4 - len(raw_b64) % 4) % 4)
+                        img_data = _b64.b64decode(raw_b64)
+                        ext = ".png"
+                        mtype = img_url.split(";")[0].split("/")[-1] if ";" in img_url else "png"
+                        if mtype in ("jpeg", "jpg"): ext = ".jpg"
+                        elif mtype == "gif": ext = ".gif"
+                        elif mtype == "webp": ext = ".webp"
+                    else:
+                        import urllib.request
+                        img_resp = urllib.request.urlopen(img_url, timeout=30)
+                        img_data = img_resp.read()
+                        ext = os.path.splitext(urllib.parse.urlparse(img_url).path)[1] or ".png"
+                    fname = f"img_{uuid.uuid4().hex[:12]}{ext}"
+                    save_dir = _uploads_dir if _uploads_dir else os.path.join(os.getcwd(), "uploads")
+                    local_path = os.path.join(save_dir, "_common", fname)
+                    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+                    with open(local_path, "wb") as f:
+                        f.write(img_data)
+                    local_urls.append(f"/download/_common/{fname}")
+                except Exception as e:
+                    local_urls.append(img_url)  # 下载失败保留原始 URL
+
+            md_images = [f"![{prompt[:30]}]({u})" for u in local_urls]
+            return {
+                "success": True,
+                "images": local_urls,
+                "markdown": "\n".join(md_images),
+                "prompt": prompt,
+                "model": model,
+                "size": size,
+                "count": len(images),
+            }
+
+        # 都没有图片 URL，返回 content 本身（模型可能只是描述了一张图）
+        if content:
+            return {"success": True, "images": [], "prompt": prompt, "model": model, "text": content}
+        return {"success": False, "error": "API 返回了空的结果"}
+    except requests.exceptions.Timeout:
+        return {"success": False, "error": "图像生成请求超时（120s）"}
+    except requests.exceptions.RequestException as e:
+        detail = str(e)[:200]
+        if hasattr(e, "response") and e.response is not None:
+            try:
+                detail = e.response.text[:200]
+            except Exception:
+                pass
+        return {"success": False, "error": f"图像生成失败: {detail}"}
+    except Exception as e:
+        return {"success": False, "error": f"图像生成异常: {str(e)[:200]}"}
+
+
+register_tool("generate_image",
+              "Generate images from text description. Requires image_gen config in config.yaml. "
+              "Returns image URLs in 'images' array and ready-to-use Markdown in 'markdown' field. "
+              "CRITICAL: You MUST paste the 'markdown' content UNCHANGED into your response so the user can see the image. "
+              "Your response should start with the markdown image.",
+              
+              _generate_image,
+              {"type": "object", "properties": {
+                  "prompt": {"type": "string", "description": "English prompt works best for most models"},
+                  "size": {"type": "string", "description": "Image size, e.g. 1024x1024, 1792x1024 (default from config)", "default": ""},
+               },
+               "required": ["prompt"]})
+
 
 ALL_TOOL_NAMES = list(_TOOLS.keys())
 

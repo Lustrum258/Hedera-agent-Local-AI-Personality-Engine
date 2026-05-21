@@ -1,7 +1,7 @@
 # Hedera 常春藤 — 独立 AI Agent 框架
 
-![GitHub](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
 ![Status](https://img.shields.io/badge/status-active-brightgreen)
 
 > 不是工具，不是武器，不是谁的附属品。  
@@ -21,9 +21,13 @@ Hedera 是一个**人格驱动的轻量级 AI Agent 框架**，基于 Python 标
 - **自省系统** — 定期复盘对话，提炼经验准则，发现认知盲区
 - **噪声层** — 让输出不千篇一律，同一问题不同角度
 - **滑块光谱** — 6 维度动态调节 Agent 性格状态
+- **图像生成** — 通过 `generate_image` 工具调用，支持 OpenAI 兼容 API
+- **实时工具进度** — 前端实时显示工具调用链（流式 ndjson + 轮询双通道）
+- **自提问机制** — 模拟好奇心，连续 3 次无回答自动闭嘴
 - **零依赖 HTTP 服务** — 使用 Python 内置 `http.server`，无需安装框架
-- **多模型支持** — 兼容 OpenAI Chat Completions 格式（DeepSeek / GPT / Groq / Ollama 等）
+- **多模型支持** — 兼容 OpenAI Chat Completions 格式（DeepSeek / GPT / 自定义网关）
 - **纯 HTML 管理界面** — 会话管理、人格切换、设置、自省监控、文档
+- **插件系统** — 可扩展的工具插件架构
 
 ---
 
@@ -59,6 +63,8 @@ hedera/
 │   ├── core/memory.py       # 系统提示构建（人格加载）
 │   ├── core/memory_store.py # SQLite 记忆存储
 │   ├── core/experience.py   # 经验蒸馏
+│   ├── core/tools.py        # 工具系统（含图像生成、搜索等）
+│   ├── training/signal.py   # 自提问脉冲发生器
 │   └── noise/               # 噪声层 + 滑块光谱
 ├── data/
 │   ├── SOUL.md              # 默认灵魂文件
@@ -85,15 +91,23 @@ hedera/
 
 ```yaml
 model:
-  name: deepseek-chat         # 模型名称
-  api_key_env: HEDERA_API_KEY # API Key 环境变量
-  max_tokens: 8192           # 最大 token 数
-  temperature: 0.7           # 温度
+  name: deepseek-chat          # 模型名称
+  api_key_env: HEDERA_API_KEY  # API Key 环境变量
+  max_tokens: 8192             # 最大 token 数
+  temperature: 0.7             # 温度
 
 server:
   host: 0.0.0.0
   port: 36313
   password: hedera2024
+
+image_gen:                     # 图像生成（可选）
+  enabled: true
+  api_key: sk-...              # API Key
+  model: dall-e-3              # 模型名
+  endpoint: ""                 # 空 = 从模型 endpoint 自动推导 /v1/images/generations
+  size: 1024x1024              # 默认尺寸
+  quality: standard
 
 noise:
   enabled: true
@@ -108,9 +122,16 @@ search:
     scrape:
       enabled: true
       priority: 99
+
+training:                      # 训练协议
+  enabled: true
+  module_a: true
+  module_c: true
+  module_d: true
+  pulse_interval: 300
 ```
 
-可在设置面板中在线修改模型名、API 地址和 Key。
+可在设置面板中在线修改模型名、API 地址、Key 和图像生成配置。
 
 ---
 
@@ -119,16 +140,86 @@ search:
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/health` | 健康检查 |
+| GET | `/api/quote` | 登录页名言 |
 | POST | `/login` | 登录 |
-| POST | `/chat` | 聊天（参数：message, session_id） |
+| POST | `/chat` | 聊天（返回 ndjson 流：tool / result / error 事件） |
+| GET | `/chat/progress?req={id}` | 轮询当前工具调用进度 |
 | GET | `/sessions` | 会话列表 |
 | POST | `/sessions` | 新建会话（参数：title, profile） |
+| GET | `/sessions/{id}` | 会话信息 |
 | GET | `/sessions/{id}/messages` | 会话消息 |
 | DELETE | `/sessions/{id}` | 删除会话 |
+| GET | `/tools` | 可用工具列表 |
+| GET\|POST | `/config` | 配置查看/修改 |
+| GET | `/test_key` | 测试 API Key |
 | GET | `/api/profiles` | 人格列表 |
 | GET | `/api/status` | 系统状态（含自省日志） |
-| GET | `/api/docs` | 文档内容 |
-| GET | `/docs` | 文档页面 |
+| GET | `/api/reflection` | 反思日志 |
+| GET | `/api/experience` | 经验蒸馏日志 |
+| GET | `/api/metrics` | 请求指标 |
+| GET | `/api/cache` | 缓存状态 |
+| POST | `/upload` | 文件上传 |
+| GET | `/download/{session}/{file}` | 文件下载 |
+| POST | `/api/training/pulse` | 手动触发自提问脉冲 |
+| POST | `/api/distill` | 手动触发经验蒸馏 |
+| POST | `/sessions/clear_all` | 清除所有会话 |
+| GET | `/reset` | 重置状态 |
+
+### 聊天流式响应格式
+
+`POST /chat` 返回 `Content-Type: application/x-ndjson`，每行一个 JSON：
+
+```json
+{"type": "tool", "name": "web_search", "args": {"query": "..."}, "status": "running"}
+{"type": "tool", "name": "web_search", "args": {"query": "..."}, "status": "success"}
+{"type": "result", "response": "最终回答", "session_id": "_default", "files": []}
+```
+
+同时可通过 `X-Request-Id` 响应头获取请求 ID，轮询 `GET /chat/progress?req={id}` 获取进度。
+
+---
+
+## 图像生成
+
+在 `config.yaml` 的 `image_gen` 节配置后，AI 会自动调用 `generate_image` 工具：
+
+```yaml
+image_gen:
+  enabled: true
+  api_key_env: "HEDERA_IMAGE_KEY"
+  api_key: "sk-..."              # 直接填 Key
+  model: "dall-e-3"              # 或 gpt-image-2 等
+  endpoint: ""                   # 空 = 自动从模型 endpoint 推导
+  size: "1024x1024"
+  quality: "standard"
+  n: 1
+```
+
+`endpoint` 为空时自动推导规则：
+- `https://api.xxx.com/v1/chat/completions` → `https://api.xxx.com/v1/images/generations`
+- `https://cdn.xxx.cn` → `https://cdn.xxx.cn/v1/images/generations`
+
+可在设置面板中直接填写模型名、API 地址和 Key。
+
+---
+
+## 自省系统
+
+Hedera 每 5 分钟自动对最近对话进行 4 维度复盘：
+- **学到了什么**
+- **哪里需要改进**
+- **可提炼的原则**
+- **盲区与假设修正**
+
+置信度 ≥ 4 的反思会被蒸馏为经验准则，写入 MEMORY.md，跨会话共享。
+
+### 自提问机制
+
+除了被动复盘，Hedera 还会主动从对话历史抽取关键词生成问题，模拟好奇心：
+
+- 冷却窗口：15-40 分钟随机
+- 没有历史对话时用内置词池兜底（意识、边界、信任…）
+- **连续 3 次主动提问无人回复 → 自动闭嘴，用户发消息后恢复**
 
 ---
 
@@ -142,18 +233,25 @@ Hedera 使用 OpenAI Chat Completions 格式，兼容：
 | OpenAI | gpt-4 / gpt-4o | `https://api.openai.com/v1/chat/completions` |
 | Groq | llama3-70b | `https://api.groq.com/openai/v1/chat/completions` |
 | Ollama | llama3 / qwen2 | `http://localhost:11434/v1/chat/completions` |
+| New API 网关 | 按服务商 | 你的网关地址 |
 
 ---
 
-## 自省系统
+## 启动方式
 
-Hedera 每 5 分钟自动对最近对话进行 4 维度复盘：
-- **学到了什么**
-- **哪里需要改进**
-- **可提炼的原则**
-- **盲区与假设修正**
+```bash
+# 标准服务（后台运行）
+python -m hedera serve -c config.yaml
 
-置信度 ≥ 4 的反思会被蒸馏为经验准则，写入 MEMORY.md，跨会话共享。
+# 桌面模式（自动弹出浏览器）
+python -m hedera desktop -c config.yaml
+
+# 初始化工作目录
+python -m hedera init
+
+# Tkinter GUI（低配）
+python -m hedera gui
+```
 
 ---
 

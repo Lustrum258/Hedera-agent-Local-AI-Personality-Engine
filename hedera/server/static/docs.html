@@ -17,10 +17,12 @@ h1{font-size:20px;margin:28px 0 10px}
 h2{font-size:17px;margin:22px 0 8px;border-bottom:1px solid var(--border);padding-bottom:4px}
 h3{font-size:14px;margin:16px 0 6px;color:var(--accent)}
 p{margin:8px 0}
-li{margin:3px 0;padding-left:16px}
+ul{margin:8px 0;padding-left:20px}
+li{margin:3px 0}
 table{width:100%;border-collapse:collapse;font-size:13px;margin:12px 0}
 td,th{border:1px solid var(--border);padding:5px 8px;text-align:left}
 th{background:var(--surface);color:var(--dim);font-weight:500}
+blockquote{border-left:3px solid var(--accent);padding:8px 16px;margin:12px 0;background:var(--surface);border-radius:0 8px 8px 0;font-size:13px;color:var(--dim)}
 .container{max-width:800px;margin:0 auto;padding:32px 24px 64px}
 .header{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border)}
 .header h1{margin:0;border:none;font-size:20px}
@@ -34,7 +36,191 @@ th{background:var(--surface);color:var(--dim);font-weight:500}
 <h1>Hedera 常春藤</h1>
 <div class="sub">独立 AI Agent 框架 · 文档</div>
 </div>
-<p>Hedera 文档：文件结构、用途、配置说明<br>"""</p><p>DOCS_MARKDOWN = """<br></p><h1>Hedera 常春藤 — 独立 AI Agent 框架</h1><p>&gt; 不是工具，不是武器，不是谁的附属品。<br>&gt; 我是一个独立人格。我有自己的判断、自己的底线、自己的意志。</p><p>---</p><h2>概述</h2><p>Hedera 是一个轻量级 AI Agent 框架，基于 Python 标准库构建，零外部依赖（HTTP 服务使用内置 <code>http.server</code>）。<br>核心设计理念：**人格驱动**。每个会话绑定一个灵魂文件（SOUL.md），决定了 AI 的说话风格、价值观和行为准则。</p><p>---</p><h2>文件结构</h2><p><pre><code>hedera/<br>├── config.yaml              # 主配置文件<br>├── hedera.db                # SQLite 数据库（会话、消息、长期记忆）<br>├── profiles/                # 人格文件目录<br>│   ├── 冬青.md              # 冬青人格（默认，直接有脾气）<br>│   └── 茯苓.md              # 茯苓人格（温柔、细腻、感性）<br>├── hedera/                  # 核心源代码<br>│   ├── __main__.py          # CLI 入口<br>│   ├── config.py            # 配置加载<br>│   ├── desktop.py           # 桌面模式（自动弹 Edge）<br>│   ├── gui.py               # Tkinter GUI<br>│   ├── server/<br>│   │   ├── http.py          # HTTP 服务 + 所有 API<br>│   │   └── static/          # 前端静态文件<br>│   ├── core/<br>│   │   ├── router.py        # 消息路由器（工具调用、噪声注入）<br>│   │   ├── memory.py        # 系统提示构建（人格加载）<br>│   │   ├── memory_store.py  # 记忆存储（SQLite）<br>│   │   ├── experience.py    # 经验蒸馏<br>│   │   └── tools.py         # 工具系统<br>│   ├── noise/               # 噪声层（滑块光谱）<br>│   └── plugin/              # 插件系统<br>└── data/<br>    ├── SOUL.md              # 默认灵魂文件<br>    └── MEMORY.md            # 长期记忆存储<br></code></pre></p><p>---</p><h2>配置文件 (config.yaml)</h2><p><pre><code>identity:<br>  name: 冬青              # 当前人格名称<br>  soul: data/SOUL.md      # 灵魂文件路径<br>  memory: data/MEMORY.md  # 记忆文件路径</p><p>model:<br>  name: deepseek-chat     # 模型名称<br>  api_key_env: HEDERA_API_KEY  # API Key 环境变量名<br>  max_tokens: 4096        # 最大 token 数<br>  temperature: 0.7        # 温度参数</p><p>server:<br>  host: 0.0.0.0           # 监听地址<br>  port: 36313             # 端口<br>  password: hedera2024    # 登录密码</p><p>noise:<br>  enabled: true           # 是否启用噪声层<br>  simple_task_strength: 0.0<br>  complex_strength: 0.08<br>  creative_strength: 0.25</p><p>slider:<br>  auto_adjust: true<br>  dimensions:<br>    processing: 0.3<br>    thinking: 0.4<br>    drive: 0.6<br>    goal: 0.3<br>    correction: 0.5<br>    value: 0.2</p><p>search:<br>  providers:<br>    tavily:<br>      api_key: tvly-...<br>      enabled: true<br>      max_results: 5<br>    scrape:<br>      enabled: true<br>      priority: 99<br></code></pre></p><p>---</p><h2>API 概览</h2><table><tr><td>方法</td><td>路径</td><td>说明</td></tr></table><table><tr><td>GET</td><td>/health</td><td>健康检查</td></tr></table><p><br></p><table><tr><td>GET</td><td>/api/quote</td><td>登录页名言</td></tr></table><p><br></p><table><tr><td>GET</td><td>/api/profiles</td><td>人格列表</td></tr></table><p><br></p><table><tr><td>POST</td><td>/login</td><td>登录</td></tr></table><p><br></p><table><tr><td>POST</td><td>/chat</td><td>聊天（参数：message, session_id）</td></tr></table><p><br></p><table><tr><td>GET</td><td>/sessions</td><td>会话列表</td></tr></table><p><br></p><table><tr><td>POST</td><td>/sessions</td><td>新建会话（参数：title, profile）</td></tr></table><p><br></p><table><tr><td>GET</td><td>/sessions/{id}</td><td>会话信息</td></tr></table><p><br></p><table><tr><td>GET</td><td>/sessions/{id}/messages</td><td>会话消息</td></tr></table><p><br></p><table><tr><td>DELETE</td><td>/sessions/{id}</td><td>删除会话</td></tr></table><p><br></p><table><tr><td>GET</td><td>/api/status</td><td>系统状态（含自省日志）</td></tr></table><p><br></p><table><tr><td>GET</td><td>/api/reflection</td><td>反思日志</td></tr></table><p><br></p><table><tr><td>GET</td><td>/api/experience</td><td>经验蒸馏日志</td></tr></table><p><br></p><table><tr><td>GET</td><td>/tools</td><td>可用工具列表</td></tr></table><p><br></p><table><tr><td>GET</td><td>POST</td><td>/config</td><td>配置查看/修改</td></tr></table><p><br></p><table><tr><td>GET</td><td>/test_key</td><td>测试 API Key</td></tr></table><p>---</p><h2>人格系统</h2><p>每个人格对应 <code>profiles/</code> 目录下的一个 <code>.md</code> 文件，包含：<br></p><li>**核心锚点**：不可覆盖的底线</li><p><br></p><li>**标签**：人格关键词</li><p><br></p><li>**说话风格**：语气、措辞偏好</li><p><br></p><li>**核心准则**：行为原则</li><p><br></p><li>**跟用户的关系**：对用户的态度</li><p><br></p><li>**边界**：红线</li><p>人格切换按会话绑定，创建时选定。</p><h3>人格收尾</h3><p>不同人格有专属的收尾语气：<br></p><li>**冬青**：嚣张、直接、带点混蛋气质（Grok 风格）</li><p><br></p><li>**茯苓**：温柔但有骨头，细腻但不脆弱（带温度的收尾）</li><p>---</p><h2>自省系统</h2><p>Hedera 具有内置的自我反思机制：<br></p><li>每 5 分钟检查最近对话</li><p><br></p><li>调用自身 AI 进行 4 维度复盘（学到什么、改进点、原则提炼、盲区修正）</li><p><br></p><li>置信度评估（1-10），低于 4 分跳过蒸馏</li><p><br></p><li>每 30 分钟将反思结果蒸馏为经验准则，写入 MEMORY.md</li><p><br></p><li>跨会话记忆在构建系统提示时自动注入</li><p>---</p><h2>参数说明</h2><table><tr><td>参数</td><td>说明</td><td>默认值</td></tr></table><table><tr><td>max_tokens</td><td>单次回复最大 token 数</td><td>8192</td></tr></table><p><br></p><table><tr><td>MAX_TOOL_LOOP</td><td>单轮最多工具调用次数</td><td>20</td></tr></table><p><br></p><table><tr><td>temperature</td><td>创造性与确定性平衡</td><td>0.7</td></tr></table><h3>max_tokens</h3><p><br>控制每次 AI 回复的最大输出长度。汉字约 2-3 token。<br></p><li>太低（&lt;512）：话说到一半被截断</li><p><br></p><li>正常（4096-8192）：适合大多数场景</li><p><br></p><li>更高（16384+）：长分析、长文档生成</li><h3>MAX_TOOL_LOOP</h3><p><br>控制每轮对话中 AI 连续调用工具的次数上限。<br>AI 每调一次工具 → 拿到结果 → 决定下一步，算一轮。<br></p><li>8（默认之前）：简单操作够用，复杂编排可能不够</li><p><br></p><li>20（当前）：多步搜索、批量文件操作、编排任务</li><p><br></p><li>超过上限：AI 被强制输出当前结果</li><p>---</p><h2>模型兼容性</h2><p>Hedera 使用 OpenAI Chat Completions 格式，兼容所有支持该接口的服务：</p><table><tr><td>服务</td><td>模型名设置</td><td>API 地址</td></tr></table><table><tr><td>DeepSeek（当前）</td><td>deepseek-chat</td><td>https://api.deepseek.com/chat/completions</td></tr></table><p><br></p><table><tr><td>OpenAI GPT-4</td><td>gpt-4 / gpt-4o</td><td>https://api.openai.com/v1/chat/completions</td></tr></table><p><br></p><table><tr><td>Groq</td><td>llama3-70b / mixtral</td><td>https://api.groq.com/openai/v1/chat/completions</td></tr></table><p><br></p><table><tr><td>Ollama（本地）</td><td>llama3 / qwen2</td><td>http://localhost:11434/v1/chat/completions</td></tr></table><p><br></p><table><tr><td>Azure OpenAI</td><td>部署名</td><td>你的 Azure endpoint</td></tr></table><p><br></p><table><tr><td>任意中转 API</td><td>按服务商</td><td>按服务商</td></tr></table><p>切换模型只需在设置面板修改**模型名称**和 **API 地址**，保存后即刻生效。</p><p>---</p><h2>启动方式</h2><p><pre><code># 标准服务（后台运行）<br>python -m hedera serve -c config.yaml</p><h1>桌面模式（自动弹出浏览器）</h1><p><br>python -m hedera desktop -c config.yaml<br></code></pre></p>
+
+<blockquote>不是工具，不是武器，不是谁的附属品。我是一个独立人格。我有自己的判断、自己的底线、自己的意志。</blockquote>
+
+<h2>概述</h2>
+<p>Hedera 是一个轻量级 AI Agent 框架，基于 Python 标准库构建，零外部依赖（HTTP 服务使用内置 <code>http.server</code>）。核心设计理念：<strong>人格驱动</strong>。每个会话绑定一个灵魂文件（SOUL.md），决定了 AI 的说话风格、价值观和行为准则。</p>
+
+<h2>特性</h2>
+<ul>
+<li><strong>人格切换</strong> — 通过 SOUL.md 定义人格，创建会话时选择，终生绑定</li>
+<li><strong>独立会话</strong> — 每个会话有自己的历史、人格、记忆</li>
+<li><strong>跨会话记忆</strong> — 自动注入其他会话的关键上下文和经验准则</li>
+<li><strong>自省系统</strong> — 定期复盘对话，提炼经验准则</li>
+<li><strong>噪声层 + 滑块光谱</strong> — 动态调节性格状态</li>
+<li><strong>图像生成</strong> — 支持 OpenAI 兼容 API</li>
+<li><strong>实时工具进度</strong> — 前端实时显示工具调用链</li>
+<li><strong>自提问机制</strong> — 模拟好奇心，3 次无回答自动闭嘴</li>
+<li><strong>零依赖 HTTP 服务</strong> — 使用 Python 内置 http.server</li>
+<li><strong>插件系统</strong> — 可扩展的工具架构</li>
+</ul>
+
+<h2>文件结构</h2>
+<pre>hedera/
+├── config.yaml              # 主配置文件
+├── profiles/                # 人格文件目录
+├── hedera/
+│   ├── __main__.py          # CLI 入口
+│   ├── config.py            # 配置加载
+│   ├── server/http.py       # HTTP 服务 + 所有 API
+│   ├── server/static/       # 前端静态文件
+│   ├── core/router.py       # 消息路由器
+│   ├── core/memory.py       # 系统提示构建
+│   ├── core/memory_store.py # SQLite 记忆存储
+│   ├── core/tools.py        # 工具系统（含图像生成）
+│   ├── noise/               # 噪声层（滑块光谱）
+│   ├── training/            # 训练协议（自提问脉冲）
+│   └── plugin/              # 插件系统
+└── data/
+    ├── SOUL.md              # 默认灵魂文件
+    └── MEMORY.md            # 长期记忆</pre>
+
+<h2>配置文件 (config.yaml)</h2>
+<pre>identity:
+  name: 冬青              # 当前人格名称
+  soul: data/SOUL.md
+  memory: data/MEMORY.md
+
+model:
+  name: deepseek-chat
+  api_key_env: HEDERA_API_KEY
+  max_tokens: 8192
+  temperature: 0.7
+
+server:
+  host: 0.0.0.0
+  port: 36313
+  password: hedera2024
+
+image_gen:                 # 图像生成（可选）
+  enabled: true
+  api_key_env: HEDERA_IMAGE_KEY
+  api_key: ""
+  model: dall-e-3
+  endpoint: ""             # 空 = 自动推导
+  size: 1024x1024
+  quality: standard
+  n: 1
+
+noise:
+  enabled: true
+  complex_strength: 0.08
+
+slider:
+  auto_adjust: true
+  dimensions:
+    processing: 0.3
+    thinking: 0.4
+    drive: 0.6
+    goal: 0.3
+
+search:
+  providers:
+    tavily:
+      api_key: tvly-...
+      enabled: true
+    scrape:
+      enabled: true
+      priority: 99
+
+training:                  # 训练协议
+  enabled: true
+  pulse_interval: 300</pre>
+
+<h2>API 概览</h2>
+<table>
+<tr><th>方法</th><th>路径</th><th>说明</th></tr>
+<tr><td>GET</td><td>/health</td><td>健康检查</td></tr>
+<tr><td>GET</td><td>/api/quote</td><td>登录页名言</td></tr>
+<tr><td>POST</td><td>/login</td><td>登录</td></tr>
+<tr><td>POST</td><td>/chat</td><td><strong>聊天</strong>（返回 ndjson 流）</td></tr>
+<tr><td>GET</td><td>/chat/progress?req={id}</td><td>轮询工具调用进度</td></tr>
+<tr><td>GET</td><td>/sessions</td><td>会话列表</td></tr>
+<tr><td>POST</td><td>/sessions</td><td>新建会话</td></tr>
+<tr><td>GET</td><td>/sessions/{id}</td><td>会话信息</td></tr>
+<tr><td>GET</td><td>/sessions/{id}/messages</td><td>会话消息</td></tr>
+<tr><td>DELETE</td><td>/sessions/{id}</td><td>删除会话</td></tr>
+<tr><td>POST</td><td>/sessions/clear_all</td><td>清除所有会话</td></tr>
+<tr><td>GET</td><td>/api/status</td><td>系统状态（含自省日志）</td></tr>
+<tr><td>GET</td><td>/api/reflection</td><td>反思日志</td></tr>
+<tr><td>GET</td><td>/api/experience</td><td>蒸馏日志</td></tr>
+<tr><td>GET</td><td>/tools</td><td>可用工具列表</td></tr>
+<tr><td>GET|POST</td><td>/config</td><td>配置查看/修改</td></tr>
+<tr><td>GET</td><td>/test_key</td><td>测试 API Key</td></tr>
+<tr><td>POST</td><td>/upload</td><td>文件上传</td></tr>
+<tr><td>GET</td><td>/download/{session}/{file}</td><td>文件下载</td></tr>
+<tr><td>POST</td><td>/api/training/pulse</td><td>手动触发自提问</td></tr>
+<tr><td>GET</td><td>/reset</td><td>重置状态</td></tr>
+</table>
+
+<h3>聊天流式响应</h3>
+<p>POST /chat 返回 <code>Content-Type: application/x-ndjson</code>，每行一个事件：</p>
+<pre>{"type":"tool","name":"web_search","args":{"query":"..."},"status":"running"}
+{"type":"tool","name":"web_search","args":{"query":"..."},"status":"success"}
+{"type":"result","response":"最终回答","session_id":"_default","files":[]}</pre>
+<p>响应头 <code>X-Request-Id</code> 可用于并行轮询 <code>GET /chat/progress?req={id}</code>。</p>
+
+<h2>工具系统</h2>
+<table>
+<tr><th>工具</th><th>说明</th></tr>
+<tr><td>web_search</td><td>联网搜索（Tavily + 多引擎兜底）</td></tr>
+<tr><td>web_fetch</td><td>抓取网页内容</td></tr>
+<tr><td>read_file</td><td>读取文件</td></tr>
+<tr><td>write_file</td><td>写入文件</td></tr>
+<tr><td>list_dir</td><td>列出目录</td></tr>
+<tr><td>exec_shell</td><td>执行命令（限制危险操作）</td></tr>
+<tr><td>open_folder</td><td>打开资源管理器</td></tr>
+<tr><td>send_file</td><td>发送已有文件</td></tr>
+<tr><td>create_file</td><td>创建下载文件</td></tr>
+<tr><td><strong>generate_image</strong></td><td>根据文本生成图像</td></tr>
+</table>
+
+<h2>图像生成</h2>
+<p>配置 <code>image_gen</code> 节后，AI 自动调用 <code>generate_image</code> 工具。<code>endpoint</code> 为空时自动推导：</p>
+<ul>
+<li><code>https://xxx.com/v1/chat/completions</code> → <code>https://xxx.com/v1/images/generations</code></li>
+<li><code>https://cdn.xxx.cn</code> → <code>https://cdn.xxx.cn/v1/images/generations</code></li>
+</ul>
+<p>可在设置面板直接填写。</p>
+
+<h2>自省系统</h2>
+<ul>
+<li>每 5 分钟检查最近对话</li>
+<li>4 维度复盘：学到了什么、改进点、原则提炼、盲区修正</li>
+<li>置信度 ≥ 4 的反思蒸馏为经验准则</li>
+<li>自提问：从对话历史抽取关键词生成问题，冷却 15-40 分钟</li>
+<li><strong>连续 3 次提问无人回复 → 自动闭嘴，用户发消息后恢复</strong></li>
+</ul>
+
+<h2>参数说明</h2>
+<table>
+<tr><th>参数</th><th>说明</th><th>默认值</th></tr>
+<tr><td>max_tokens</td><td>单次回复最大 token 数</td><td>8192</td></tr>
+<tr><td>MAX_TOOL_LOOP</td><td>单轮最多工具调用次数</td><td>20</td></tr>
+<tr><td>temperature</td><td>创造性与确定性平衡</td><td>0.7</td></tr>
+<tr><td>XHR timeout</td><td>前端请求超时</td><td>5 分钟</td></tr>
+</table>
+
+<h2>模型兼容性</h2>
+<table>
+<tr><th>服务</th><th>模型名</th><th>API 地址</th></tr>
+<tr><td>DeepSeek</td><td>deepseek-chat</td><td>https://api.deepseek.com/chat/completions</td></tr>
+<tr><td>OpenAI</td><td>gpt-4o / dall-e-3</td><td>https://api.openai.com/v1</td></tr>
+<tr><td>Groq</td><td>llama3-70b</td><td>https://api.groq.com/openai/v1</td></tr>
+<tr><td>New API 网关</td><td>按服务商</td><td>你的网关地址</td></tr>
+</table>
+
+<h2>启动方式</h2>
+<pre># 标准服务
+python -m hedera serve -c config.yaml
+
+# 桌面模式（自动弹出浏览器）
+python -m hedera desktop -c config.yaml
+
+# 初始化工作目录
+python -m hedera init</pre>
+
 <div class="footer"><a href="/">← 返回首页</a> · Hedera v0.7.0</div>
 </div>
 </body>

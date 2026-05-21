@@ -8,7 +8,7 @@
 <link rel="icon" href="/icon.png" type="image/png" sizes="256x256">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#0b0b10;--surface:#16161f;--border:#232336;--text:#dedee8;--dim:#787890;--accent:#6c8c6c;--accent2:#4a6a4a;--accent3:#2a3a2a;--msg-bot:#16161f;--msg-user:#1a2626;--radius:12px;--sbw:280px;--font:-apple-system,'PingFang SC','Noto Sans SC',system-ui,sans-serif;--mono:'Cascadia Code','JetBrains Mono','Fira Code','Consolas','DejaVu Sans Mono',monospace}
+:root{--bg:#0b0b10;--surface:#16161f;--border:#232336;--text:#dedee8;--dim:#787890;--dim-bg:#1a1a28;--accent:#6c8c6c;--accent2:#4a6a4a;--accent3:#2a3a2a;--msg-bot:#16161f;--msg-user:#1a2626;--radius:12px;--sbw:280px;--font:-apple-system,'PingFang SC','Noto Sans SC',system-ui,sans-serif;--mono:'Cascadia Code','JetBrains Mono','Fira Code','Consolas','DejaVu Sans Mono',monospace}
 body{background:var(--bg);color:var(--text);font-family:var(--font);height:100dvh;display:flex;overflow:hidden}
 
 /* ── 关键帧 ── */
@@ -19,6 +19,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);height:100dv
 @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
 @keyframes slideIn{0%{transform:translateX(-100%)}100%{transform:translateX(0)}}
 @keyframes slideOut{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
+@keyframes fadeIn{0%{opacity:0}100%{opacity:1}}
 
 /* ── 侧边栏 ── */
 #sidebar{width:var(--sbw);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;z-index:20;transition:width .3s cubic-bezier(.4,0,.2,1),border-color .3s ease}
@@ -39,7 +40,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);height:100dv
 .sb-section .sb-head .arrow{font-size:9px;transition:transform .2s}
 .sb-section .sb-head .arrow.open{transform:rotate(90deg)}
 .sb-section .sb-body{padding:0 12px;max-height:0;overflow:hidden;transition:max-height .3s cubic-bezier(.4,0,.2,1),padding .3s ease;opacity:0;transition:max-height .3s cubic-bezier(.4,0,.2,1),padding .3s ease,opacity .25s ease}
-.sb-section .sb-body.open{max-height:600px;padding:0 12px 12px;opacity:1}
+.sb-section .sb-body.open{max-height:9999px;padding:0 12px 12px;opacity:1}
 
 /* 会话列表 */
 .session-item{padding:8px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;cursor:pointer;transition:all .2s}
@@ -87,6 +88,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);height:100dv
 /* 设置 */
 .setting-row{margin-bottom:12px}
 .setting-row label{display:block;font-size:11px;color:var(--dim);margin-bottom:4px}
+.setting-row.sb-subsection{margin-top:16px;margin-bottom:4px;border-top:1px solid var(--border);padding-top:10px}
+.setting-row .sb-subtitle{font-size:12px;font-weight:600;color:var(--text)}
 .setting-row input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:12px;outline:none;font-family:var(--font);transition:border-color .2s}
 .setting-row input:focus{border-color:var(--accent)}
 .setting-row .sbtn{background:var(--accent);border:none;border-radius:6px;padding:7px 16px;color:#fff;font-size:12px;cursor:pointer;transition:all .2s;margin-top:6px}
@@ -165,6 +168,19 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);height:100dv
 .msg th{background:var(--accent3)60;font-weight:600}
 .msg tr:nth-child(even){background:var(--accent3)20}
 .msg a{color:#7dab7d;text-decoration:none;border-bottom:1px solid var(--accent2)}
+.tool-indicator{background:var(--dim-bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin:6px 0;font-size:12px;line-height:1.5;animation:fadeIn .2s ease}
+.tool-indicator .ti-icon{display:inline-block;width:18px}
+.tool-indicator .ti-name{font-weight:500}
+.tool-indicator .ti-doing{color:var(--accent);margin-left:6px;font-size:11px}
+.tool-indicator .ti-done{color:#6c8;margin-left:6px;font-size:11px}
+.tool-indicator .ti-err{color:#c66;margin-left:6px;font-size:11px}
+
+.switch{position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.switch .slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--border);transition:.3s;border-radius:20px}
+.switch .slider:before{position:absolute;content:"";height:14px;width:14px;left:3px;bottom:3px;background:#fff;transition:.3s;border-radius:50%}
+.switch input:checked+.slider{background:var(--accent)}
+.switch input:checked+.slider:before{transform:translateX(16px)}
 .msg a:hover{color:#9dcc9d}
 .msg img{max-width:100%;border-radius:6px;margin:6px 0}
 
@@ -176,6 +192,9 @@ footer button{background:var(--accent);border:none;border-radius:var(--radius);p
 footer button:hover:not(:disabled){background:#7da07d;transform:translateY(-1px)}
 footer button:active:not(:disabled){transform:translateY(0)}
 footer button:disabled{opacity:.4;cursor:default}
+
+footer #attachBtn{background:var(--accent);border:none;width:36px;padding:0}
+footer #attachBtn:hover:not(:disabled){background:#7da07d;transform:translateY(-1px)}
 
 /* 登录 */
 #login{position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center}
@@ -201,8 +220,8 @@ footer button:disabled{opacity:.4;cursor:default}
   #sidebar:not(.collapsed){transform:translateX(0)}
 }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script async src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
 </head>
 <body>
@@ -294,10 +313,90 @@ footer button:disabled{opacity:.4;cursor:default}
           <label data-i18n="labelSearchKey">Tavily 搜索 API Key</label>
           <input type="password" id="cfgTavilyKey" placeholder="tvly-...">
         </div>
+        <div class="setting-row sb-subsection">
+          <span class="sb-subtitle" data-i18n="subtitleImageGen">图像生成</span>
+        </div>
+        <div class="setting-row">
+          <label data-i18n="labelImgModel">模型</label>
+          <input type="text" id="cfgImgModel" placeholder="dall-e-3">
+        </div>
+        <div class="setting-row">
+          <label data-i18n="labelImgEndpoint">API 地址</label>
+          <input type="text" id="cfgImgEndpoint" placeholder="https://api.openai.com/v1/images/generations">
+        </div>
+        <div class="setting-row">
+          <label data-i18n="labelImgKey">API Key</label>
+          <input type="password" id="cfgImgKey" placeholder="sk-...">
+        </div>
+        <div class="setting-row sb-subsection">
+          <span class="sb-subtitle" data-i18n="subtitleTts">语音合成 (TTS)</span>
+        </div>
+        <div class="setting-row">
+          <label data-i18n="labelTtsModel">模型</label>
+          <input type="text" id="cfgTtsModel" placeholder="tts-1">
+        </div>
+        <div class="setting-row">
+          <label data-i18n="labelTtsVoice">语音</label>
+          <input type="text" id="cfgTtsVoice" placeholder="alloy">
+        </div>
+        <div class="setting-row">
+          <label data-i18n="labelTtsEndpoint">API 地址</label>
+          <input type="text" id="cfgTtsEndpoint" placeholder="https://api.openai.com/v1/audio/speech">
+        </div>
+        <div class="setting-row">
+          <label data-i18n="labelTtsKey">API Key</label>
+          <input type="password" id="cfgTtsKey" placeholder="sk-...">
+        </div>
+        <div class="setting-row">
+          <label style="display:flex;align-items:center;gap:8px">
+            <span data-i18n="labelTtsToggle">朗读开关</span>
+            <label class="switch">
+              <input type="checkbox" id="cfgTtsToggle">
+              <span class="slider"></span>
+            </label>
+          </label>
+        </div>
+                <div class="setting-row sb-subsection">
+          <span class="sb-subtitle">📋 LLM 预设</span>
+        </div>
+        <div class="setting-row" style="display:flex;gap:6px;flex-wrap:wrap">
+          <select id="cfgPresetLlm" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;outline:none;font-family:var(--font);min-width:80px">
+            <option value="">-- LLM --</option>
+          </select>
+          <button class="sbtn" style="flex-shrink:0;padding:4px 10px;font-size:11px" onclick="savePreset('llm')">保存</button>
+          <button class="sbtn sec" style="flex-shrink:0;padding:4px 10px;font-size:11px" onclick="loadPreset('llm')">加载</button>
+          <button class="sbtn sec" style="flex-shrink:0;padding:4px 10px;font-size:11px;background:var(--accent2)" onclick="delPreset('llm')">删除</button>
+        </div>
+        <div class="setting-row sb-subsection">
+          <span class="sb-subtitle">🖼 图片生成 预设</span>
+        </div>
+        <div class="setting-row" style="display:flex;gap:6px;flex-wrap:wrap">
+          <select id="cfgPresetImg" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;outline:none;font-family:var(--font);min-width:80px">
+            <option value="">-- 图片 --</option>
+          </select>
+          <button class="sbtn" style="flex-shrink:0;padding:4px 10px;font-size:11px" onclick="savePreset('img')">保存</button>
+          <button class="sbtn sec" style="flex-shrink:0;padding:4px 10px;font-size:11px" onclick="loadPreset('img')">加载</button>
+          <button class="sbtn sec" style="flex-shrink:0;padding:4px 10px;font-size:11px;background:var(--accent2)" onclick="delPreset('img')">删除</button>
+          <button class="sbtn sec" style="flex-shrink:0;padding:4px 10px;font-size:11px;background:var(--accent2)" onclick="testConn('img')">测试</button>
+        </div>
+        <div class="setting-row sb-subsection">
+          <span class="sb-subtitle">🔊 TTS 预设</span>
+        </div>
+        <div class="setting-row" style="display:flex;gap:6px;flex-wrap:wrap">
+          <select id="cfgPresetTts" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;outline:none;font-family:var(--font);min-width:80px">
+            <option value="">-- TTS --</option>
+          </select>
+          <button class="sbtn" style="flex-shrink:0;padding:4px 10px;font-size:11px" onclick="savePreset('tts')">保存</button>
+          <button class="sbtn sec" style="flex-shrink:0;padding:4px 10px;font-size:11px" onclick="loadPreset('tts')">加载</button>
+          <button class="sbtn sec" style="flex-shrink:0;padding:4px 10px;font-size:11px;background:var(--accent2)" onclick="delPreset('tts')">删除</button>
+          <button class="sbtn sec" style="flex-shrink:0;padding:4px 10px;font-size:11px;background:var(--accent2)" onclick="testConn('tts')">测试</button>
+        </div>
+        <div class="setting-row" style="margin-top:6px">
+          <input type="text" id="cfgPresetName" placeholder="预设名称" style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--text);font-size:12px;outline:none;font-family:var(--font)">
+        </div>
         <div class="setting-row">
           <span id="cfgStatus" class="sstatus"></span>
           <button class="sbtn" id="cfgSave" data-i18n="save">保存</button>
-          <button class="sbtn" id="cfgTest" data-i18n="test" disabled>测试连接</button>
         </div>
         <hr style="border:none;border-top:1px solid var(--border);margin:12px 0">
         <div class="setting-row" style="justify-content:flex-end">
@@ -328,11 +427,10 @@ footer button:disabled{opacity:.4;cursor:default}
   </div>
   <div id="chat"></div>
   <footer>
-    <input type="file" id="fileInput" style="display:none" multiple>
-    <button id="attachBtn" disabled style="background:var(--accent);padding:4px 8px;width:36px;height:40px;border-radius:8px;cursor:pointer;border:none;display:inline-flex;align-items:center;justify-content:center"><svg viewBox="0 0 32 32" width="20" height="20" style="fill:#fff"><path d="M4,28a3,3,0,0,1-3-3V7A3,3,0,0,1,4,4h7a1,1,0,0,1,.77.36L14.8,8H27a1,1,0,0,1,0,2H14.33a1,1,0,0,1-.76-.36L10.53,6H4A1,1,0,0,0,3,7V25a1,1,0,0,0,1,1,1,1,0,0,1,0,2Z"/><path d="M25.38,28H4a1,1,0,0,1-1-1.21l3-14A1,1,0,0,1,7,12H30a1,1,0,0,1,1,1.21L28.32,25.63A3,3,0,0,1,25.38,28ZM5.24,26H25.38a1,1,0,0,0,1-.79L28.76,14h-21Z"/></svg></button>
+    <button id="attachBtn" title="上传文件" disabled style="width:36px;height:40px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0"><svg viewBox="0 0 32 32" width="18" height="18" style="fill:#fff"><path d="M4,28a3,3,0,0,1-3-3V7A3,3,0,0,1,4,4h7a1,1,0,0,1,.77.36L14.8,8H27a1,1,0,0,1,0,2H14.33a1,1,0,0,1-.76-.36L10.53,6H4A1,1,0,0,0,3,7V25a1,1,0,0,0,1,1,1,1,0,0,1,0,2Z"/><path d="M25.38,28H4a1,1,0,0,1-1-1.21l3-14A1,1,0,0,1,7,12H30a1,1,0,0,1,1,1.21L28.32,25.63A3,3,0,0,1,25.38,28ZM5.24,26H25.38a1,1,0,0,0,1-.79L28.76,14h-21Z"/></svg></button>
     <textarea id="input" rows="1" data-i18n="inputPlaceholder" placeholder="说点什么…" disabled></textarea>
     <button id="sendBtn" data-i18n="sendBtn" disabled>发送</button>
-  </footer>
+          </footer>
 </div>
 
 <script>
@@ -354,7 +452,7 @@ var _I18N={zh:{
   sidebarSessions:'会话',sidebarTools:'工具',sidebarReflection:'自省',sidebarDocs:'文档',sidebarSettings:'设置',
   newSessPlaceholder:'名称（可选）',newSessBtn:'新建',noSessions:'暂无会话，新建一个',curSess:'当前',deleteSess:'删除会话？',clearSess:'确认删除所有会话？',
   tabReflog:'反思',tabExp:'蒸馏',tabRules:'准则',noReflog:'暂无反思',noExp:'暂无蒸馏',noRules:'暂无准则',refresh:'↻ 刷新',
-  labelModelName:'模型名称',labelApiEndpoint:'API 地址（可选，默认 DeepSeek）',labelApiKey:'API Key',labelSearchKey:'Tavily 搜索 API Key',clearAll:'✖ 清除所有会话',logout:'登出',offline:'离线',loginTitle:'进入',confirmLogout:'确认登出？',
+  labelModelName:'模型名称',labelApiEndpoint:'API 地址（可选，默认 DeepSeek）',labelApiKey:'API Key',labelSearchKey:'Tavily 搜索 API Key',subtitleImageGen:'图像生成',labelImgModel:'模型',labelImgEndpoint:'API 地址',labelImgKey:'API Key',subtitleTts:'语音合成 (TTS)',labelTtsModel:'模型',labelTtsVoice:'语音',labelTtsEndpoint:'API 地址',labelTtsKey:'API Key',labelTtsToggle:'启动朗读',subtitlePresets:'📋 预设管理',selectPreset:'选择预设',clearAll:'✖ 清除所有会话',logout:'登出',offline:'离线',loginTitle:'进入',confirmLogout:'确认登出？',
   emptyChat:'{name}在等你。',sendBtn:'发送',inputPlaceholder:'说点什么…',defaultSession:'默认会话',
   copy:'📋 复制',copied:'✅ 已复制',
   langZh:'中文',langEn:'English',
@@ -368,7 +466,7 @@ _I18N.en={
   sidebarSessions:'Sessions',sidebarTools:'Tools',sidebarReflection:'Insights',sidebarDocs:'Docs',sidebarSettings:'Settings',
   newSessPlaceholder:'Title (optional)',newSessBtn:'New',noSessions:'No sessions yet',curSess:'Current',deleteSess:'Delete session?',clearSess:'Delete all sessions?',
   tabReflog:'Reflections',tabExp:'Learnings',tabRules:'Rules',noReflog:'No reflections',noExp:'No learnings',noRules:'No rules',refresh:'↻ Refresh',
-  labelModelName:'Model Name',labelApiEndpoint:'API Endpoint (optional, default DeepSeek)',labelApiKey:'API Key',labelSearchKey:'Tavily Search API Key',clearAll:'✖ Clear All Sessions',logout:'Log out',offline:'Offline',loginTitle:'Enter',confirmLogout:'Confirm logout?',
+  labelModelName:'Model Name',labelApiEndpoint:'API Endpoint (optional, default DeepSeek)',labelApiKey:'API Key',labelSearchKey:'Tavily Search API Key',subtitleImageGen:'🖼️ Image Generation',labelImgModel:'Model',labelImgEndpoint:'API Endpoint',labelImgKey:'API Key',subtitleTts:'🔊 TTS Speech',labelTtsModel:'Model',labelTtsVoice:'Voice',labelTtsEndpoint:'API Endpoint',labelTtsKey:'API Key',labelTtsToggle:'Enable TTS',subtitlePresets:'📋 Presets',selectPreset:'Select Preset',clearAll:'✖ Clear All Sessions',logout:'Log out',offline:'Offline',loginTitle:'Enter',confirmLogout:'Confirm logout?',
   emptyChat:'Waiting for {name}...',sendBtn:'Send',inputPlaceholder:'Type a message…',defaultSession:'Default Session',
   copy:'📋 Copy',copied:'✅ Copied',
   langZh:'中文',langEn:'English',
@@ -382,7 +480,7 @@ _I18N.ja={
   sidebarSessions:'セッション',sidebarTools:'ツール',sidebarReflection:'インサイト',sidebarDocs:'ドキュメント',sidebarSettings:'設定',
   newSessPlaceholder:'タイトル（任意）',newSessBtn:'新規',noSessions:'セッションがありません',curSess:'現在',deleteSess:'セッションを削除？',clearSess:'全てのセッションを削除？',
   tabReflog:'振り返り',tabExp:'学び',tabRules:'ルール',noReflog:'振り返りなし',noExp:'学びなし',noRules:'ルールなし',refresh:'↻ 更新',
-  labelModelName:'モデル名',labelApiEndpoint:'API エンドポイント（任意、デフォルト DeepSeek）',labelApiKey:'API Key',labelSearchKey:'Tavily 検索 API Key',clearAll:'✖ 全セッション削除',logout:'ログアウト',offline:'オフライン',loginTitle:'ログイン',confirmLogout:'ログアウトしますか？',
+  labelModelName:'モデル名',labelApiEndpoint:'API エンドポイント（任意、デフォルト DeepSeek）',labelApiKey:'API Key',labelSearchKey:'Tavily 検索 API Key',subtitleImageGen:'🖼️ 画像生成',labelImgModel:'モデル',labelImgEndpoint:'API エンドポイント',labelImgKey:'API Key',clearAll:'✖ 全セッション削除',logout:'ログアウト',offline:'オフライン',loginTitle:'ログイン',confirmLogout:'ログアウトしますか？',
   emptyChat:'{name}をお待ちしています。',sendBtn:'送信',inputPlaceholder:'メッセージを入力…',defaultSession:'デフォルトセッション',
   copy:'📋 コピー',copied:'✅ コピー完了',
   langZh:'中文',langEn:'English',
@@ -396,7 +494,7 @@ _I18N.ko={
   sidebarSessions:'세션',sidebarTools:'도구',sidebarReflection:'인사이트',sidebarDocs:'문서',sidebarSettings:'설정',
   newSessPlaceholder:'제목(선택)',newSessBtn:'새로 만들기',noSessions:'세션이 없습니다',curSess:'현재',deleteSess:'세션 삭제?',clearSess:'모든 세션 삭제?',
   tabReflog:'반성',tabExp:'학습',tabRules:'규칙',noReflog:'반성 없음',noExp:'학습 없음',noRules:'규칙 없음',refresh:'↻ 새로고침',
-  labelModelName:'모델 이름',labelApiEndpoint:'API 엔드포인트(선택, 기본 DeepSeek)',labelApiKey:'API Key',labelSearchKey:'Tavily 검색 API Key',clearAll:'✖ 모든 세션 지우기',logout:'로그아웃',offline:'오프라인',loginTitle:'로그인',confirmLogout:'로그아웃 확인?',
+  labelModelName:'모델 이름',labelApiEndpoint:'API 엔드포인트(선택, 기본 DeepSeek)',labelApiKey:'API Key',labelSearchKey:'Tavily 검색 API Key',subtitleImageGen:'🖼️ 이미지 생성',labelImgModel:'모델',labelImgEndpoint:'API 엔드포인트',labelImgKey:'API Key',clearAll:'✖ 모든 세션 지우기',logout:'로그아웃',offline:'오프라인',loginTitle:'로그인',confirmLogout:'로그아웃 확인?',
   emptyChat:'{name}을(를) 기다리는 중...',sendBtn:'전송',inputPlaceholder:'메시지 입력…',defaultSession:'기본 세션',
   copy:'📋 복사',copied:'✅ 복사됨',
   langZh:'中文',langEn:'English',
@@ -410,7 +508,7 @@ _I18N.fr={
   sidebarSessions:'Sessions',sidebarTools:'Outils',sidebarReflection:'Aperçus',sidebarDocs:'Docs',sidebarSettings:'Paramètres',
   newSessPlaceholder:'Titre (optionnel)',newSessBtn:'Nouveau',noSessions:'Aucune session',curSess:'Actuel',deleteSess:'Supprimer la session ?',clearSess:'Tout supprimer ?',
   tabReflog:'Réflexions',tabExp:'Apprentissages',tabRules:'Règles',noReflog:'Aucune réflexion',noExp:'Aucun apprentissage',noRules:'Aucune règle',refresh:'↻ Actualiser',
-  labelModelName:'Nom du modèle',labelApiEndpoint:'Endpoint API (optionnel, défaut DeepSeek)',labelApiKey:'Clé API',labelSearchKey:'Clé API Tavily',clearAll:'✖ Tout effacer',logout:'Déconnexion',offline:'Hors ligne',loginTitle:'Entrer',confirmLogout:'Confirmer la déconnexion ?',
+  labelModelName:'Nom du modèle',labelApiEndpoint:'Endpoint API (optionnel, défaut DeepSeek)',labelApiKey:'Clé API',labelSearchKey:'Clé API Tavily',subtitleImageGen:'🖼️ Génération d\'image',labelImgModel:'Modèle',labelImgEndpoint:'Endpoint API',labelImgKey:'Clé API',clearAll:'✖ Tout effacer',logout:'Déconnexion',offline:'Hors ligne',loginTitle:'Entrer',confirmLogout:'Confirmer la déconnexion ?',
   emptyChat:'{name} vous attend.',sendBtn:'Envoyer',inputPlaceholder:'Tapez un message…',defaultSession:'Session par défaut',
   copy:'📋 Copier',copied:'✅ Copié',
   langZh:'中文',langEn:'English',
@@ -424,7 +522,7 @@ _I18N.de={
   sidebarSessions:'Sitzungen',sidebarTools:'Werkzeuge',sidebarReflection:'Einblicke',sidebarDocs:'Dokumente',sidebarSettings:'Einstellungen',
   newSessPlaceholder:'Titel (optional)',newSessBtn:'Neu',noSessions:'Keine Sitzungen',curSess:'Aktuell',deleteSess:'Sitzung löschen?',clearSess:'Alle löschen?',
   tabReflog:'Reflexionen',tabExp:'Lernerfahrungen',tabRules:'Regeln',noReflog:'Keine Reflexionen',noExp:'Keine Lernerfahrungen',noRules:'Keine Regeln',refresh:'↻ Aktualisieren',
-  labelModelName:'Modellname',labelApiEndpoint:'API-Endpunkt (option, Standard DeepSeek)',labelApiKey:'API-Schlüssel',labelSearchKey:'Tavily-Such-API-Schlüssel',clearAll:'✖ Alle löschen',logout:'Abmelden',offline:'Offline',loginTitle:'Anmelden',confirmLogout:'Abmelden bestätigen?',
+  labelModelName:'Modellname',labelApiEndpoint:'API-Endpunkt (option, Standard DeepSeek)',labelApiKey:'API-Schlüssel',labelSearchKey:'Tavily-Such-API-Schlüssel',subtitleImageGen:'🖼️ Bildgenerierung',labelImgModel:'Modell',labelImgEndpoint:'API-Endpunkt',labelImgKey:'API-Schlüssel',clearAll:'✖ Alle löschen',logout:'Abmelden',offline:'Offline',loginTitle:'Anmelden',confirmLogout:'Abmelden bestätigen?',
   emptyChat:'Warte auf {name}...',sendBtn:'Senden',inputPlaceholder:'Nachricht eingeben…',defaultSession:'Standardsitzung',
   copy:'📋 Kopieren',copied:'✅ Kopiert',
   langZh:'中文',langEn:'English',
@@ -438,7 +536,7 @@ _I18N.es={
   sidebarSessions:'Sesiones',sidebarTools:'Herramientas',sidebarReflection:'Información',sidebarDocs:'Docs',sidebarSettings:'Ajustes',
   newSessPlaceholder:'Título (opcional)',newSessBtn:'Nuevo',noSessions:'Sin sesiones',curSess:'Actual',deleteSess:'¿Eliminar sesión?',clearSess:'¿Eliminar todo?',
   tabReflog:'Reflexiones',tabExp:'Aprendizajes',tabRules:'Reglas',noReflog:'Sin reflexiones',noExp:'Sin aprendizajes',noRules:'Sin reglas',refresh:'↻ Actualizar',
-  labelModelName:'Nombre del modelo',labelApiEndpoint:'Endpoint API (opcional, por defecto DeepSeek)',labelApiKey:'Clave API',labelSearchKey:'Clave API de Tavily',clearAll:'✖ Limpiar todo',logout:'Cerrar sesión',offline:'Desconectado',loginTitle:'Entrar',confirmLogout:'¿Confirmar cierre?',
+  labelModelName:'Nombre del modelo',labelApiEndpoint:'Endpoint API (opcional, por defecto DeepSeek)',labelApiKey:'Clave API',labelSearchKey:'Clave API de Tavily',subtitleImageGen:'🖼️ Generación de imágenes',labelImgModel:'Modelo',labelImgEndpoint:'Endpoint API',labelImgKey:'Clave API',clearAll:'✖ Limpiar todo',logout:'Cerrar sesión',offline:'Desconectado',loginTitle:'Entrar',confirmLogout:'¿Confirmar cierre?',
   emptyChat:'Esperando a {name}...',sendBtn:'Enviar',inputPlaceholder:'Escribe un mensaje…',defaultSession:'Sesión por defecto',
   copy:'📋 Copiar',copied:'✅ Copiado',
   langZh:'中文',langEn:'English',
@@ -452,7 +550,7 @@ _I18N.ru={
   sidebarSessions:'Сессии',sidebarTools:'Инструменты',sidebarReflection:'Инсайты',sidebarDocs:'Документы',sidebarSettings:'Настройки',
   newSessPlaceholder:'Название (необяз.)',newSessBtn:'Новая',noSessions:'Нет сессий',curSess:'Текущая',deleteSess:'Удалить сессию?',clearSess:'Удалить все сессии?',
   tabReflog:'Размышления',tabExp:'Опыт',tabRules:'Правила',noReflog:'Нет размышлений',noExp:'Нет опыта',noRules:'Нет правил',refresh:'↻ Обновить',
-  labelModelName:'Название модели',labelApiEndpoint:'API Endpoint (опц., по умолч. DeepSeek)',labelApiKey:'API Key',labelSearchKey:'Tavily API Key',clearAll:'✖ Очистить всё',logout:'Выйти',offline:'Офлайн',loginTitle:'Войти',confirmLogout:'Подтвердить выход?',
+  labelModelName:'Название модели',labelApiEndpoint:'API Endpoint (опц., по умолч. DeepSeek)',labelApiKey:'API Key',labelSearchKey:'Tavily API Key',subtitleImageGen:'🖼️ Генерация изображений',labelImgModel:'Модель',labelImgEndpoint:'API Endpoint',labelImgKey:'API Key',clearAll:'✖ Очистить всё',logout:'Выйти',offline:'Офлайн',loginTitle:'Войти',confirmLogout:'Подтвердить выход?',
   emptyChat:'Ожидание {name}...',sendBtn:'Отправить',inputPlaceholder:'Введите сообщение…',defaultSession:'Сессия по умолчанию',
   copy:'📋 Копировать',copied:'✅ Скопировано',
   langZh:'中文',langEn:'English',
@@ -467,7 +565,7 @@ _I18N.lzh={
   sidebarSessions:'談',sidebarTools:'器',sidebarReflection:'思',sidebarDocs:'文',sidebarSettings:'設',
   newSessPlaceholder:'名（可無）',newSessBtn:'新',noSessions:'尚無談',curSess:'今',deleteSess:'刪此談？',clearSess:'盡刪諸談？',
   tabReflog:'省',tabExp:'歷',tabRules:'規',noReflog:'無省',noExp:'無歷',noRules:'無規',refresh:'↻ 更',
-  labelModelName:'模型名',labelApiEndpoint:'API 端（可無，默 DeepSeek）',labelApiKey:'API 鑰',labelSearchKey:'Tavily 搜 API 鑰',clearAll:'✖ 盡除諸談',logout:'出',offline:'離',loginTitle:'入',confirmLogout:'確認出？',
+  labelModelName:'模型名',labelApiEndpoint:'API 端（可無，默 DeepSeek）',labelApiKey:'API 鑰',labelSearchKey:'Tavily 搜 API 鑰',subtitleImageGen:'🖼️ 像成',labelImgModel:'模型',labelImgEndpoint:'API 端',labelImgKey:'API 鑰',clearAll:'✖ 盡除諸談',logout:'出',offline:'離',loginTitle:'入',confirmLogout:'確認出？',
   emptyChat:'待{name}⋯',sendBtn:'發',inputPlaceholder:'書言⋯',defaultSession:'預設談',
   copy:'📋 錄',copied:'✅ 已錄',
   langZh:'中文',langEn:'English',
@@ -499,8 +597,11 @@ function renderMarkdown(text){
       return html;
     }
   }catch(e){}
-  // fallback: 转义 HTML 后当纯文本
-  return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // fallback: 手动渲染图片 markdown，其余转义
+  var safe=text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // 把 ![](url) 转成 <img>
+  safe=safe.replace(/!\[(.*?)\]\(([^)]+)\)/g,'<img src="$2" alt="$1" style="max-width:100%;border-radius:6px;margin:6px 0">');
+  return safe;
 }
 
 function setMsgContent(el,text){
@@ -799,11 +900,12 @@ function loadSessionMessages(sid){
 }
 
 function initChat(){
-  input.disabled=false;sendBtn.disabled=false;$('attachBtn').disabled=false;
+  input.disabled=false;sendBtn.disabled=false;if($('attachBtn'))$('attachBtn').disabled=false;
   updateSessionLabel();loadSessionMessages(SESSION_ID);input.focus();
   check();setInterval(check,10000);
   loadNewSessProfiles();
   updateEmptyText();
+  if(typeof loadTtsMode==='function')loadTtsMode();
 }
 
 function addMsg(text,role,t,files){
@@ -815,12 +917,11 @@ function addMsg(text,role,t,files){
   d.className='msg '+(role==='user'?'me':'bot');
   chat.appendChild(d);
   if(t&&role==='bot'){
-    // 打字效果：逐字渲染 Markdown（检测到 Markdown 语法自动渲染）
+    // 打字效果：逐字渲染 Markdown
     setMsgContent(d,'');
     var idx=0,lastIdx=0,ti=setInterval(function(){
       if(idx<text.length){
         idx++;
-        // 每 3 个字符重新渲染 Markdown，打字动画自带 Markdown 实时效果
         if(idx-lastIdx>=3||idx>=text.length){
           setMsgContent(d,text.slice(0,idx));
           lastIdx=idx;
@@ -828,7 +929,6 @@ function addMsg(text,role,t,files){
         }
       } else {
         clearInterval(ti);
-        // 最终渲染
         setMsgContent(d,text);
         if(fileList.length>0) renderFileButtons(d,fileList);
         chat.scrollTop=chat.scrollHeight;
@@ -852,48 +952,240 @@ function showTyping(){
   d.innerHTML='<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
   chat.appendChild(d);chat.scrollTop=chat.scrollHeight;
 }
+function hideTyping(){
+  var t=document.querySelector('.msg.bot.typing');
+  if(t)t.remove();
+}
+function removeToolIndicator(){
+  var el=document.getElementById('toolIndicator');
+  if(el)el.remove();
+}
+function escapeHtml(s){
+  if(typeof s!=='string')return ''+s;
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToolCall(name, args, status, errMsg){
+  // 更新或追加工具调用指示器
+  var el=document.getElementById('toolIndicator');
+  if(!el){
+    el=document.createElement('div');
+    el.id='toolIndicator';
+    el.className='msg tool-indicator';
+    chat.appendChild(el);
+  }
+  var argsPreview='';
+  if(args&&typeof args==='object'){
+    var vals=Object.values(args).filter(function(v){return typeof v==='string'}).map(function(v){return v.length>30?v.slice(0,30)+'...':v}).join(', ');
+    if(vals)argsPreview=' ('+vals+')';
+  }
+  if(status==='success'){
+    el.innerHTML='<span class="ti-icon">✅</span> <span class="ti-name">'+name+'</span>'+escapeHtml(argsPreview)+' <span class="ti-done">完成</span>';
+  }else if(status==='error'){
+    el.innerHTML='<span class="ti-icon">⚠️</span> <span class="ti-name">'+name+'</span>'+escapeHtml(argsPreview)+' <span class="ti-err">失败: '+(errMsg||'')+'</span>';
+  }else{
+    // 正在执行
+    el.innerHTML='<span class="ti-icon">⏳</span> <span class="ti-name">'+name+'</span>'+escapeHtml(argsPreview)+' <span class="ti-doing">执行中...</span>';
+  }
+  chat.scrollTop=chat.scrollHeight;
+}
 
 function send(){
   if(LOADING||!TOKEN)return;
   var text=input.value.trim();if(!text)return;
   input.value='';input.style.height='auto';
   addMsg(text,'user');showTyping();LOADING=true;sendBtn.disabled=true;
+  // 轮询进度
+  var reqId='';
+  function pollProgress(){
+    if(!LOADING||!reqId)return;
+    var p=new XMLHttpRequest();
+    p.open('GET',HOST+'/chat/progress?req='+reqId);
+    p.setRequestHeader('Authorization','Bearer '+TOKEN);
+    p.onload=function(){try{
+      var d=JSON.parse(p.responseText);
+      if(d&&d.name){
+        showToolCall(d.name, d.args, d.status, d.error);
+      }
+    }catch(e){};
+    if(LOADING)setTimeout(pollProgress,600)};
+    p.send();
+  }
+  // 流式 ndjson 请求
+  var _lastPos=0;
   var x=new XMLHttpRequest();
   x.open('POST',HOST+'/chat');
+  x.timeout=300000;
   x.setRequestHeader('Content-Type','application/json');
   x.setRequestHeader('Authorization','Bearer '+TOKEN);
-  x.onload=function(){
-    if(x.status===401){LS.removeItem('hedera_token');TOKEN='';showLogin();LOADING=false;sendBtn.disabled=false;return}
-    try{
-      var d=JSON.parse(x.responseText);
-      if(d.response){addMsg(d.response,'bot',true,d.files);
-        if(d.session_id&&d.session_id!==SESSION_ID){
-          SESSION_ID=d.session_id;LS.setItem('hedera_session_id',SESSION_ID);
-          loadSessions();
-        }else{
-          loadSessions();
+  x.onreadystatechange=function(){
+    if(x.status===401&&x.readyState===4){LS.removeItem('hedera_token');TOKEN='';showLogin();LOADING=false;sendBtn.disabled=false;return}
+    // 获取请求 ID 用于轮询
+    if(x.readyState===2){
+      reqId=x.getResponseHeader('X-Request-Id')||'';
+      if(reqId)setTimeout(pollProgress,600);
+    }
+    // 实时工具调用（增量解析，行可能不完整但工具事件通常在独立行）
+    if(x.readyState===3){
+      var raw=x.responseText||'';
+      var newPart=raw.slice(_lastPos);
+      _lastPos=raw.length;
+      if(newPart){
+        var lines=newPart.split('\n');
+        for(var i=0;i<lines.length;i++){
+          var line=lines[i].trim();
+          if(!line)continue;
+          try{
+            var ev=JSON.parse(line);
+            if(ev.type==='tool')showToolCall(ev.name, ev.args, ev.status, ev.error);
+          }catch(e2){}
         }
-        // 首次消息后，数据库 title 变为用户消息内容，同步到顶栏
-        if(!SESSION_LABEL&&text){
-          SESSION_LABEL=text.slice(0,40);
-          LS.setItem('hedera_session_label',SESSION_LABEL);
-          updateSessionLabel();
-        }
-      }else addMsg('错误: '+d.error,'bot')
-    }catch(e){addMsg('响应解析失败','bot')}
-    LOADING=false;sendBtn.disabled=false;input.focus();
+      }
+    }
+    // 请求完成：完整解析所有行（确保跨 chunk 的行也能处理）
+    if(x.readyState===4){
+      if(x.status===401){LS.removeItem('hedera_token');TOKEN='';showLogin();LOADING=false;sendBtn.disabled=false;return}
+      var raw=x.responseText||'';
+      var lines=raw.split('\n');
+      var foundDone=false;
+      for(var i=0;i<lines.length;i++){
+        var line=lines[i].trim();
+        if(!line)continue;
+        try{
+          var ev=JSON.parse(line);
+          if(ev.type==='tool'){
+            showToolCall(ev.name, ev.args, ev.status, ev.error);
+          }else if(ev.type==='result'){
+            foundDone=true;
+            hideTyping();removeToolIndicator();
+            LOADING=false;sendBtn.disabled=false;
+            var rt=ev.response||'';
+            if(rt)addMsg(rt,'bot',true,ev.files||[]);
+            else addMsg(ev.error||'已处理','bot');
+            if(ev.session_id&&ev.session_id!==SESSION_ID){
+              SESSION_ID=ev.session_id;LS.setItem('hedera_session_id',SESSION_ID);
+            }
+            loadSessions();
+            if(!SESSION_LABEL&&text){SESSION_LABEL=text.slice(0,40);LS.setItem('hedera_session_label',SESSION_LABEL);updateSessionLabel();}
+            input.focus();
+          }else if(ev.type==='error'){
+            foundDone=true;
+            hideTyping();removeToolIndicator();
+            LOADING=false;sendBtn.disabled=false;
+            addMsg('错误: '+(ev.error||'未知错误'),'bot');input.focus();
+          }
+        }catch(e2){}
+      }
+      if(!foundDone&&LOADING){
+        hideTyping();removeToolIndicator();
+        LOADING=false;sendBtn.disabled=false;
+        try{var d=JSON.parse(raw);if(d.response)addMsg(d.response,'bot',true,d.files);else addMsg('连接失败，刷新重试','bot');
+        }catch(e){addMsg('连接失败，刷新重试','bot')}
+        input.focus();
+      }
+    }
   };
-  x.onerror=function(){addMsg('连接失败','bot');LOADING=false;sendBtn.disabled=false};
+  x.ontimeout=function(){hideTyping();removeToolIndicator();LOADING=false;sendBtn.disabled=false;addMsg('请求超时（超过5分钟），刷新重试','bot')};
+  x.onerror=function(){hideTyping();removeToolIndicator();LOADING=false;sendBtn.disabled=false;addMsg('连接失败，请刷新页面重试','bot')};
   x.send(JSON.stringify({message:text,session_id:SESSION_ID||null}));
 }
 input.onkeydown=function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}};
 input.oninput=function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'};
 sendBtn.onclick=send;
 
-$('attachBtn').onclick=function(){$('fileInput').click()};
-$('fileInput').onchange=function(){
+// ─── TTS 语音朗读（浏览器原生 + API 双模式）───
+var _ttsEnabled=false;
+var _ttsApiMode=false;  // 启动后从 config 读取
+var _ttsUtterance=null;
+var _ttsAudioEl=null;
+
+// 从 config 加载 TTS API 模式
+function loadTtsMode(){
+  var cb=$('cfgTtsToggle');
+  if(!cb)return;
+  cb.onchange=function(){
+    _ttsEnabled=cb.checked;
+    localStorage.setItem('hedera_tts',_ttsEnabled?'1':'0');
+    if(!_ttsEnabled){
+      if(window.speechSynthesis)window.speechSynthesis.cancel();
+      if(_ttsAudioEl){_ttsAudioEl.pause();_ttsAudioEl=null}
+    }
+  };
+  var saved=localStorage.getItem('hedera_tts');
+  if(saved==='1'){cb.checked=true;_ttsEnabled=true}
+  // Load API mode from config
+  var x=new XMLHttpRequest();
+  x.open('GET',HOST+'/config');
+  x.setRequestHeader('Authorization','Bearer '+TOKEN);
+  x.onload=function(){try{
+    var d=JSON.parse(x.responseText);
+    _ttsApiMode=!!(d.tts&&d.tts.enabled&&d.tts.api_key_masked&&d.tts.api_key_masked!=='未配置');
+  }catch(e){}};
+  x.send();
+}
+// (loadTtsMode is also called in initChat)
+
+
+
+
+function speakText(text){
+  if(!_ttsEnabled||!text)return;
+  // 去掉 markdown 图片、链接、代码块、粗体等，只留纯文字
+  // 去掉 markdown 图片、链接、代码块；去掉所有 HTTP 路径（防止 TTS 读链接）
+  var cleanText=text.replace(/!\[.*?\]\(.*?\)/g,'').replace(/\[.*?\]\(.*?\)/g,'').replace(/`{1,3}[^`]*`{1,3}/g,'').replace(/https?:\/\/[^\s]+/g,'').replace(/[*_~>`#|\-]+/g,' ').replace(/\s+/g,' ').trim().substring(0,2000);
+  
+  if(_ttsApiMode){
+    // API 模式：调后端 /api/tts → 返回本地音频 URL → 播放
+    if(_ttsAudioEl){_ttsAudioEl.pause();_ttsAudioEl=null}
+    var x=new XMLHttpRequest();
+    x.open('POST',HOST+'/api/tts');
+    x.setRequestHeader('Content-Type','application/json');
+    x.setRequestHeader('Authorization','Bearer '+TOKEN);
+    x.onload=function(){try{
+      var d=JSON.parse(x.responseText);
+      if(d.status==='ok'&&d.url){
+        _ttsAudioEl=document.createElement('audio');
+        _ttsAudioEl.src=HOST+d.url;
+        _ttsAudioEl.autoplay=true;
+        _ttsAudioEl.onended=function(){_ttsAudioEl=null};
+        document.body.appendChild(_ttsAudioEl);
+        _ttsAudioEl.play();
+      }
+    }catch(e){}};
+    x.send(JSON.stringify({text:cleanText}));
+  }else{
+    // 浏览器原生模式
+    window.speechSynthesis.cancel();
+    _ttsUtterance=new SpeechSynthesisUtterance(cleanText);
+    _ttsUtterance.lang='zh-CN';
+    _ttsUtterance.rate=1.0;
+    _ttsUtterance.pitch=1.0;
+    var voices=window.speechSynthesis.getVoices();
+    for(var i=0;i<voices.length;i++){
+      if(voices[i].lang.startsWith('zh')){_ttsUtterance.voice=voices[i];break}
+    }
+    window.speechSynthesis.speak(_ttsUtterance);
+  }
+}
+// 预加载语音列表（某些浏览器需要触发）
+window.speechSynthesis.getVoices();
+if(window.speechSynthesis.onvoiceschanged!==undefined){
+  window.speechSynthesis.onvoiceschanged=function(){window.speechSynthesis.getVoices()};
+}
+
+// 在 addMsg 末尾增加朗读触发
+var _origAddMsg=addMsg;
+addMsg=function(text,role,t,files){
+  _origAddMsg(text,role,t,files);
+  if(role==='bot'&&_ttsEnabled&&text){
+    setTimeout(function(){speakText(text)},100);
+  }
+};
+
+if($('attachBtn'))$('attachBtn').onclick=function(){var fi=document.getElementById('fileInput');if(!fi){fi=document.createElement('input');fi.type='file';fi.id='fileInput';fi.style='display:none';fi.multiple=true;document.body.appendChild(fi);fi.onchange=uploadFile;}$('fileInput').click()};
+function uploadFile(){
   var f=this.files[0];if(!f)return;
-  addMsg(_t('uploading').replace('{name}',f.name),'user');showTyping();
+  addMsg(_t('uploading').replace('{name}',f.name),'user');showTyping();LOADING=true;sendBtn.disabled=true;
   var fd=new FormData();fd.append('file',f);fd.append('session_id',SESSION_ID||'');
   var x=new XMLHttpRequest();
   x.open('POST',HOST+'/upload');
@@ -904,10 +1196,10 @@ $('fileInput').onchange=function(){
       if(d.status==='ok'&&d.file){
         var fileInfo=d.file;
         addMsg(_t('uploadedFile').replace('{name}',fileInfo.name),'user',false,fileInfo);
-        // 自动发送消息给 AI 告知文件
         var msg=_t('uploadedFile').replace('{name}',fileInfo.name)+' ('+fileInfo.url+')';
         var chatReq=new XMLHttpRequest();
         chatReq.open('POST',HOST+'/chat');
+        chatReq.timeout=120000;
         chatReq.setRequestHeader('Content-Type','application/json');
         chatReq.setRequestHeader('Authorization','Bearer '+TOKEN);
         chatReq.onload=function(){
@@ -917,15 +1209,16 @@ $('fileInput').onchange=function(){
           }catch(e){addMsg('响应解析失败','bot')}
           LOADING=false;
         };
-        chatReq.onerror=function(){addMsg('连接失败','bot');LOADING=false};
+        chatReq.ontimeout=function(){addMsg('请求超时，刷新重试','bot');LOADING=false};
+        chatReq.onerror=function(){addMsg('连接失败，请刷新页面','bot');LOADING=false};
         chatReq.send(JSON.stringify({message:msg,session_id:SESSION_ID||null}));
       }else{addMsg('上传失败','bot');LOADING=false}
     }catch(e){addMsg('解析失败','bot');LOADING=false}
     $('fileInput').value='';
   };
-  x.onerror=function(){addMsg(_t('connFailed')+': 网络错误','bot');$('fileInput').value=''};
+  x.onerror=function(){addMsg(_t('connFailed')+': 网络错误','bot')};
   x.send(fd);
-};
+}
 
 $('curSession').onclick=function(){toggleSidebar(true)};
 
@@ -1203,7 +1496,21 @@ function loadConfig(){
       if(d.model&&d.model.name)$('cfgModelName').placeholder='当前: '+d.model.name;
       if(d.model&&d.model.endpoint)$('cfgModelEndpoint').placeholder='当前: '+d.model.endpoint;
       if(d.search_providers)for(var i=0;i<d.search_providers.length;i++)if(d.search_providers[i].name==='tavily')$('cfgTavilyKey').placeholder=_LANG==='zh'?'已配置: '+(d.search_providers[i].api_key_masked||''):'Configured: '+(d.search_providers[i].api_key_masked||'');
-      $('cfgTest').disabled=false;setStatus('');
+      // 图像生成配置
+      if(d.image_gen){
+        var ig=d.image_gen;
+        if(ig.model)$('cfgImgModel').placeholder='当前: '+ig.model;
+        if(ig.endpoint)$('cfgImgEndpoint').placeholder='当前: '+ig.endpoint;
+        $('cfgImgKey').placeholder=_LANG==='zh'?'已配置: '+(ig.api_key_masked||''):'Configured: '+(ig.api_key_masked||'');
+      }
+      // TTS 配置
+      if(d.tts){
+        var ts=d.tts;
+        if(ts.model)$('cfgTtsModel').placeholder='当前: '+ts.model;
+        if(ts.voice)$('cfgTtsVoice').placeholder='当前: '+ts.voice;
+        $('cfgTtsKey').placeholder=_LANG==='zh'?'已配置: '+(ts.api_key_masked||''):'Configured: '+(ts.api_key_masked||'');
+      }
+      setStatus('');
     }
   };
   x.onerror=function(){setStatus('加载失败','err')};
@@ -1215,6 +1522,13 @@ $('cfgSave').onclick=function(){
   var mn=$('cfgModelName').value.trim();if(mn)body.model_name=mn;
   var me=$('cfgModelEndpoint').value.trim();if(me)body.model_endpoint=me;
   var tk=$('cfgTavilyKey').value.trim();if(tk)body.search_keys={tavily:tk};
+  var im=$('cfgImgModel').value.trim();if(im)body.image_gen_model=im;
+  var ie=$('cfgImgEndpoint').value.trim();if(ie)body.image_gen_endpoint=ie;
+  var ik=$('cfgImgKey').value.trim();if(ik)body.image_gen_key=ik;
+  var tm=$('cfgTtsModel').value.trim();if(tm)body.tts_model=tm;
+  var tv=$('cfgTtsVoice').value.trim();if(tv)body.tts_voice=tv;
+  var te=$('cfgTtsEndpoint').value.trim();if(te)body.tts_endpoint=te;
+  var tk=$('cfgTtsKey').value.trim();if(tk)body.tts_key=tk;
   if(!Object.keys(body).length){setStatus(_t('noChange'),'err');return}
   $('cfgSave').disabled=true;setStatus(_t('saving')+'...');
   var x=new XMLHttpRequest();
@@ -1223,7 +1537,7 @@ $('cfgSave').onclick=function(){
   x.setRequestHeader('Authorization','Bearer '+TOKEN);
   x.onload=function(){
     if(x.status===200){
-      setStatus('已保存','ok');$('cfgModelKey').value='';$('cfgModelName').value='';$('cfgModelEndpoint').value='';$('cfgTavilyKey').value='';
+      setStatus('已保存','ok');$('cfgModelKey').value='';$('cfgModelName').value='';$('cfgModelEndpoint').value='';$('cfgTavilyKey').value='';$('cfgImgKey').value='';$('cfgImgModel').value='';$('cfgImgEndpoint').value='';$('cfgTtsKey').value='';$('cfgTtsModel').value='';$('cfgTtsVoice').value='';$('cfgTtsEndpoint').value='';
       loadConfig();
     }else setStatus(_t('saveFailed'),'err');
     $('cfgSave').disabled=false;
@@ -1231,19 +1545,90 @@ $('cfgSave').onclick=function(){
   x.onerror=function(){setStatus(_t('networkError'),'err');$('cfgSave').disabled=false};
   x.send(JSON.stringify(body));
 };
-$('cfgTest').onclick=function(){
-  setStatus('测试中...');$('cfgTest').disabled=true;
+
+// ─── 预设管理 ───
+function getPresets(){
+  try{return JSON.parse(localStorage.getItem('hedera_presets')||'[]')}catch(e){return []}
+}
+function savePresets(list){
+  localStorage.setItem('hedera_presets',JSON.stringify(list))
+}
+
+// ─── 预设管理 (分类: llm / img / tts) ───
+var PRESET_CATS={llm:{fields:['cfgModelName','cfgModelEndpoint','cfgModelKey']},
+  img:{fields:['cfgImgModel','cfgImgEndpoint','cfgImgKey']},
+  tts:{fields:['cfgTtsModel','cfgTtsVoice','cfgTtsEndpoint','cfgTtsKey']}};
+
+function getPresets(cat){try{return JSON.parse(localStorage.getItem('hedera_'+cat)||'[]')}catch(e){return[]}}
+function savePresets(cat,list){localStorage.setItem('hedera_'+cat,JSON.stringify(list))}
+function refreshPresetList(cat){
+  var sel=$(cat==='llm'?'cfgPresetLlm':cat==='img'?'cfgPresetImg':'cfgPresetTts');if(!sel)return;
+  var presets=getPresets(cat);
+  sel.innerHTML='<option value="">-- '+cat.toUpperCase()+' --</option>';
+  for(var i=0;i<presets.length;i++)sel.innerHTML+='<option value="'+i+'">'+presets[i].name+'</option>'
+}
+window.savePreset=savePreset;
+function savePreset(cat){
+  var name=$('cfgPresetName').value.trim();if(!name)return;
+  var data={name:name};
+  var fields=PRESET_CATS[cat].fields;
+  for(var i=0;i<fields.length;i++){var el=$(fields[i]);if(el)data[fields[i]]=el.value}
+  var presets=getPresets(cat);
+  for(var i=0;i<presets.length;i++){if(presets[i].name===name){presets.splice(i,1);break}}
+  presets.push(data);
+  savePresets(cat,presets);
+  refreshPresetList(cat);
+  // auto-select saved preset
+  var sid=cat==='llm'?'cfgPresetLlm':cat==='img'?'cfgPresetImg':'cfgPresetTts';var sel=document.getElementById(sid);if(sel){for(var i=0;i<sel.options.length;i++){if(sel.options[i].text===name){sel.selectedIndex=i;break}}}
+  $('cfgPresetName').value='';
+  setStatus('已保存 '+cat+': '+name,'ok');
+}
+window.loadPreset=loadPreset;
+function loadPreset(cat){
+  var sel=$(cat==='llm'?'cfgPresetLlm':cat==='img'?'cfgPresetImg':'cfgPresetTts');if(!sel||sel.value==='')return;
+  var presets=getPresets(cat);var p=presets[parseInt(sel.value)];if(!p)return;
+  var fields=PRESET_CATS[cat].fields;
+  for(var i=0;i<fields.length;i++){var el=$(fields[i]);if(el&&p[fields[i]])el.value=p[fields[i]]}
+  setStatus('已加载 '+cat+': '+p.name,'ok');
+}
+window.delPreset=delPreset;
+function delPreset(cat){
+  var sel=$(cat==='llm'?'cfgPresetLlm':cat==='img'?'cfgPresetImg':'cfgPresetTts');if(!sel||sel.value==='')return;
+  var presets=getPresets(cat);var name=presets[parseInt(sel.value)].name;
+  presets.splice(parseInt(sel.value),1);savePresets(cat,presets);refreshPresetList(cat);
+  setStatus('已删除 '+cat+': '+name,'ok');
+}
+function applyPreset(cat){
+  // 加载预设 + 保存到服务端配置
+  var sel=$(cat==='llm'?'cfgPresetLlm':cat==='img'?'cfgPresetImg':'cfgPresetTts');if(!sel||sel.value==='')return;
+  var presets=getPresets(cat);var p=presets[parseInt(sel.value)];if(!p)return;
+  var fields=PRESET_CATS[cat].fields;
+  for(var i=0;i<fields.length;i++){var el=$(fields[i]);if(el&&p[fields[i]])el.value=p[fields[i]]}
+  // 触发保存
+  $('cfgSave').click();
+  setStatus('已应用 '+cat+': '+p.name,'ok');
+}
+// 进入设置时刷新所有预设列表
+function refreshAllPresets(){refreshPresetList('llm');refreshPresetList('img');refreshPresetList('tts')}
+var _origLC=loadConfig;loadConfig=function(){_origLC();refreshAllPresets()};
+
+window.testConn=testConn;
+function testConn(cat){
+  var fields=PRESET_CATS[cat].fields;
+  var data={};
+  for(var i=0;i<fields.length;i++){var el=$(fields[i]);if(el)data[fields[i]]=el.value}
+  if(!data[fields[fields.length-1]]){setStatus('请先填写 '+cat+' 的 API Key','err');return}
+  setStatus('测试 '+cat+' 连接中...','');
   var x=new XMLHttpRequest();
-  x.open('GET',HOST+'/test_key');
+  x.open('POST',HOST+'/test_conn');
+  x.setRequestHeader('Content-Type','application/json');
   x.setRequestHeader('Authorization','Bearer '+TOKEN);
-  x.onload=function(){
-    var d=JSON.parse(x.responseText);
-    setStatus(d.ok?_t('connOk'):_t('connFail')+d.error,d.ok?'ok':'err');
-    $('cfgTest').disabled=false;
-  };
-  x.onerror=function(){setStatus(_t('networkError'),'err');$('cfgTest').disabled=false};
-  x.send();
-};
+  x.onload=function(){try{var d=JSON.parse(x.responseText);setStatus(d.ok?'连接成功':'连接失败: '+d.error,d.ok?'ok':'err')}catch(e){setStatus('响应解析失败','err')}};
+  x.onerror=function(){setStatus('网络错误','err')};
+  x.send(JSON.stringify({cat:cat,fields:data}));
+}
+
+  
 
 // ─── 登出 ───
 $('logoutBtn').onclick=function(){
@@ -1275,5 +1660,6 @@ loadQuote();
 if(TOKEN){initChat();loadSessions()}
 })();
 </script>
+
 </body>
 </html>
