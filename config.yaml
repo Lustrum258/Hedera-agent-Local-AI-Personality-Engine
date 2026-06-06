@@ -3,7 +3,7 @@ identity:
   name: 冬青
   soul: data/SOUL.md
 image_gen:
-  api_key: sk-62JmqwdDKaekwh6KjmcuVOBtaKfAetzk5rGK2giL8X0rrMnm
+  api_key: 
   api_key_env: HEDERA_IMAGE_KEY
   enabled: true
   endpoint: https://cdn.sta1n.cn/v1/chat/completions
@@ -13,7 +13,7 @@ image_gen:
   quality: standard
   size: 1024x1024
 model:
-  api_key: sk-bf30250cef794857bf2f6bb9bcc958d9
+  api_key: 
   api_key_env: HEDERA_API_KEY
   endpoint: https://api.deepseek.com/v1/chat/completions
   max_tokens: 8192
@@ -55,7 +55,7 @@ training:
   module_d: true
   pulse_interval: 300
 tts:
-  api_key: tp-s6dlfe1w7rbz2nn61iixu0c886bm1wpf3sn5391dk9yhzdxf
+  api_key: 
   api_key_env: HEDERA_TTS_KEY
   enabled: true
   endpoint: https://token-plan-sgp.xiaomimimo.com/v1/chat/completions
