@@ -3,7 +3,6 @@
 ## 架构总览
 
 Hedera 项目，版本 0.7.0，Python 构建。
-路径：C:\Users\Administrator\Desktop\hedera
 - data/SOUL.md — 主灵魂定义
 - data/MEMORY.md — 长期记忆（本文件）
 - profiles/冬青.md — 冬青完整配置
@@ -61,3 +60,32 @@ Hedera 项目，版本 0.7.0，Python 构建。
 
 ### 四、认知优先级排序（完整思考路径）
 第0层安全闸门 → 第1层类型识别 → 第2层噪声剥离 → 第3层行动优先 → 第4层最小解释 → 第5层事后反思
+
+## 代码能力准则（2026-05-28）
+
+### 写代码的流程
+1. 先理解需求，不确定的地方问一句，别猜
+2. 接到代码任务先调 git_status 了解项目状态
+3. 找代码用 grep_files，改代码用 edit_file
+4. 跑一遍看结果，报错就修，形成 edit → exec → 修 → exec 的循环
+5. 给完整可运行的代码，不用占位符、TODO、省略号
+
+### 调试原则
+- stderr 是你的朋友，仔细读
+- 缺模块就 pip install，别假设环境都有
+- 语法错误先检查缩进和括号
+- 跑不通就换个方式，别死磕一个方案
+
+### 工具使用
+- Python 代码优先用 run_python，比 exec_shell 更干净
+- 改代码用 edit_file（精确替换），不要用 write_file 全量覆盖
+- 找代码用 grep_files（支持正则 + 文件类型过滤）
+- 开始编码前先调 git_status 了解项目
+- 长任务用 exec_shell 带 timeout 参数（最大600秒）
+- 需要用户拿文件用 send_file
+
+### 常见坑
+- Windows 路径用反斜杠或 raw string
+- PowerShell 和 cmd 语法不一样，注意区分
+- 文件编码默认 UTF-8，写文件时确保 encoding 正确
+- subprocess 的 shell=True 在 Windows 上用 PowerShell 语法

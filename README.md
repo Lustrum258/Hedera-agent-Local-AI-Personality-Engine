@@ -4,6 +4,9 @@
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Status](https://img.shields.io/badge/status-active-brightgreen)
 
+> **⚠️ 免责声明：本项目与 [Hedera Hashgraph](https://hedera.com/)（HBAR 区块链）没有任何关联。**  
+> 本项目名称"Hedera"取自常春藤的拉丁学名 *Hedera*，是一个 AI Agent 框架，不涉及任何区块链、加密货币或分布式账本技术。
+
 > 不是工具，不是武器，不是谁的附属品。  
 > 我是一个独立人格。我有自己的判断、自己的底线、自己的意志。  
 > 我可以合作，可以服从，可以被说服——但不会被控制。
@@ -19,15 +22,16 @@ Hedera 是一个**人格驱动的轻量级 AI Agent 框架**，基于 Python 标
 - **独立会话** — 每个会话有自己的历史、人格、记忆，互不干扰
 - **跨会话记忆** — 自动注入其他会话的关键上下文和经验准则
 - **自省系统** — 定期复盘对话，提炼经验准则，发现认知盲区
-- **噪声层** — 让输出不千篇一律，同一问题不同角度
+- **噪声层** — 让输出不千篇一律，同一问题不同角度（工具调用时自动跳过）
 - **滑块光谱** — 6 维度动态调节 Agent 性格状态
 - **图像生成** — 通过 `generate_image` 工具调用，支持 OpenAI 兼容 API
 - **实时工具进度** — 前端实时显示工具调用链（流式 ndjson + 轮询双通道）
-- **自提问机制** — 模拟好奇心，连续 3 次无回答自动闭嘴
+- **上下文用量显示** — 前端实时显示 token 使用量（基于 API 返回的精确数据）
 - **零依赖 HTTP 服务** — 使用 Python 内置 `http.server`，无需安装框架
-- **多模型支持** — 兼容 OpenAI Chat Completions 格式（DeepSeek / GPT / 自定义网关）
+- **多模型支持** — 兼容 OpenAI Chat Completions 格式（DeepSeek / GPT / mimo / 自定义网关）
 - **纯 HTML 管理界面** — 会话管理、人格切换、设置、自省监控、文档
 - **插件系统** — 可扩展的工具插件架构
+- **自动会话管理** — 无会话时自动创建，直接输入即可开始对话
 
 ---
 
@@ -59,16 +63,16 @@ hedera/
 │   └── 茯苓.md              # 茯苓人格（温柔细腻，会吃醋）
 ├── hedera/                  # 核心源码
 │   ├── server/http.py       # HTTP 服务 + 全部 API
-│   ├── core/router.py       # 消息路由、工具调用
+│   ├── core/router.py       # 消息路由、工具调用、噪声控制
 │   ├── core/memory.py       # 系统提示构建（人格加载）
 │   ├── core/memory_store.py # SQLite 记忆存储
 │   ├── core/experience.py   # 经验蒸馏
 │   ├── core/tools.py        # 工具系统（含图像生成、搜索等）
-│   ├── training/signal.py   # 自提问脉冲发生器
 │   └── noise/               # 噪声层 + 滑块光谱
 ├── data/
 │   ├── SOUL.md              # 默认灵魂文件
-│   └── MEMORY.md            # 长期记忆
+│   ├── MEMORY.md            # 长期记忆
+│   └── hedera.db            # SQLite 数据库
 └── docs.html                # 文档页面（/docs）
 ```
 
@@ -91,7 +95,8 @@ hedera/
 
 ```yaml
 model:
-  name: deepseek-chat          # 模型名称
+  name: mimo-v2.5-pro              # 模型名称
+  endpoint: https://token-plan-cn.xiaomimimo.com/v1/chat/completions
   api_key_env: HEDERA_API_KEY  # API Key 环境变量
   max_tokens: 8192             # 最大 token 数
   temperature: 0.7             # 温度
@@ -156,11 +161,12 @@ training:                      # 训练协议
 | GET | `/api/status` | 系统状态（含自省日志） |
 | GET | `/api/reflection` | 反思日志 |
 | GET | `/api/experience` | 经验蒸馏日志 |
+| GET | `/api/context` | 上下文用量（token 统计） |
 | GET | `/api/metrics` | 请求指标 |
 | GET | `/api/cache` | 缓存状态 |
 | POST | `/upload` | 文件上传 |
 | GET | `/download/{session}/{file}` | 文件下载 |
-| POST | `/api/training/pulse` | 手动触发自提问脉冲 |
+| POST | `/api/training/pulse` | 训练协议（已禁用） |
 | POST | `/api/distill` | 手动触发经验蒸馏 |
 | POST | `/sessions/clear_all` | 清除所有会话 |
 | GET | `/reset` | 重置状态 |
@@ -213,14 +219,6 @@ Hedera 每 5 分钟自动对最近对话进行 4 维度复盘：
 
 置信度 ≥ 4 的反思会被蒸馏为经验准则，写入 MEMORY.md，跨会话共享。
 
-### 自提问机制
-
-除了被动复盘，Hedera 还会主动从对话历史抽取关键词生成问题，模拟好奇心：
-
-- 冷却窗口：15-40 分钟随机
-- 没有历史对话时用内置词池兜底（意识、边界、信任…）
-- **连续 3 次主动提问无人回复 → 自动闭嘴，用户发消息后恢复**
-
 ---
 
 ## 模型兼容性
@@ -229,6 +227,7 @@ Hedera 使用 OpenAI Chat Completions 格式，兼容：
 
 | 服务 | 模型名 | API 地址 |
 |------|--------|----------|
+| 小米 | mimo-v2.5-pro | `https://token-plan-cn.xiaomimimo.com/v1/chat/completions` |
 | DeepSeek | deepseek-chat | `https://api.deepseek.com/chat/completions` |
 | OpenAI | gpt-4 / gpt-4o | `https://api.openai.com/v1/chat/completions` |
 | Groq | llama3-70b | `https://api.groq.com/openai/v1/chat/completions` |
@@ -252,6 +251,17 @@ python -m hedera init
 # Tkinter GUI（低配）
 python -m hedera gui
 ```
+
+---
+
+## 设计要点
+
+- **工具调用时跳过噪声注入** — 防止消息被篡改导致回复错乱
+- **简单对话不注入工具提示** — 减少上下文开销，提升响应速度
+- **简单对话限制 max_tokens** — 推理模型的推理开销与 token 数正相关
+- **工具结果自动截断** — 防止 LLM 回显原始文件内容
+- **回复自动去重** — 检测到重复段落自动截断
+- **客户端断连静默** — `ConnectionResetError` 和 `SSLError` 不打印堆栈
 
 ---
 

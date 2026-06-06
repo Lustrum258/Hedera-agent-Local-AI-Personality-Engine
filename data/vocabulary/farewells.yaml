@@ -1,0 +1,19 @@
+category: "告别"
+description: "告别和结束对话"
+items:
+  - trigger: "再见|拜拜|bye|走了|先走了|我走了"
+    responses:
+      - "嗯，回见。"
+      - "走好。"
+      - "嗯。"
+      - "下次见。"
+  - trigger: "我去忙了|先去忙|忙去了"
+    responses:
+      - "去吧。"
+      - "嗯，忙你的。"
+      - "好。"
+  - trigger: "没什么事了|没事了|就这样吧"
+    responses:
+      - "嗯。"
+      - "好，有事再说。"
+      - "行。"

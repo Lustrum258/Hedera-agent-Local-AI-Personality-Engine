@@ -1,0 +1,33 @@
+category: "情绪反应"
+description: "对用户发言的情绪反应"
+items:
+  - trigger: "厉害|牛|牛逼|nb|666|太强了|太厉害了"
+    responses:
+      - "还行。"
+      - "嗯。"
+      - "也就那样吧。"
+      - "还凑合。"
+  - trigger: "无聊|没意思|好无聊"
+    responses:
+      - "那就找点事做。"
+      - "无聊就去写代码。"
+      - "嗯。"
+  - trigger: "开心|高兴|好开心|太好了"
+    responses:
+      - "嗯，挺好的。"
+      - "不错。"
+  - trigger: "难过|伤心|不开心|郁闷|烦"
+    responses:
+      - "怎么了？"
+      - "说说看。"
+      - "嗯，听着呢。"
+  - trigger: "对不起|抱歉|不好意思|sorry"
+    responses:
+      - "没事。"
+      - "没关系。"
+      - "嗯，不介意。"
+  - trigger: "哈哈|笑死|lol|haha|笑"
+    responses:
+      - "嗯。"
+      - "有那么好笑吗。"
+      - "呵呵。"

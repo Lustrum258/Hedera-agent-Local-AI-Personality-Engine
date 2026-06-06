@@ -1,4 +1,4 @@
-﻿"""
+"""
 Hedera HTTP 服务
 基于 Python 内置 http.server，零依赖 Web 服务。
 """
@@ -30,9 +30,58 @@ from hedera.core.cache import search_cache, fetch_cache, file_cache
 from hedera.training.signal import SignalManager
 
 
+# ─── 预设文件辅助 ───
+def _presets_path(data_dir: str) -> str:
+    return os.path.join(data_dir, "model_presets.json")
+
+def _load_presets_file(data_dir: str) -> dict:
+    p = _presets_path(data_dir)
+    if os.path.exists(p):
+        try:
+            with open(p, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"presets": {"llm": [], "img": [], "tts": []}}
+
+def _save_presets_file(data_dir: str, data: dict):
+    p = _presets_path(data_dir)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
 class HederaHandler(BaseHTTPRequestHandler):
     config = {}
     data_dir = ""
+
+    def _get_allowed_origin(self):
+        """获取允许的 CORS origin"""
+        # 允许本地访问
+        origin = self.headers.get("Origin", "")
+        if origin:
+            # 检查是否是本地访问
+            allowed_origins = [
+                "http://localhost",
+                "http://127.0.0.1",
+                "http://0.0.0.0",
+                "https://localhost",
+                "https://127.0.0.1",
+            ]
+            for allowed in allowed_origins:
+                if origin.startswith(allowed):
+                    return origin
+        # 如果是本地访问但没有 Origin 头，允许
+        return "http://localhost"
+
+    def handle_error(self, request, client_address):
+        """覆盖默认行为：连接类异常静默，其他异常仅打一行摘要"""
+        cls, exc, _ = sys.exc_info()
+        if cls in (ConnectionResetError, BrokenPipeError, ConnectionAbortedError):
+            return  # 客户端断连，静默
+        if cls.__name__ == "SSLError":
+            return  # 扫描器用 HTTPS 连纯 HTTP 端口，静默
+        print(f"[Hedera] {client_address[0]} - {cls.__name__}: {exc}", file=sys.stderr)
 
     def _refresh_config(self):
         """从 ConfigManager 拉取最新配置（自动检测文件变更）"""
@@ -67,12 +116,136 @@ class HederaHandler(BaseHTTPRequestHandler):
         if not pwd:
             return True  # 没设密码就不验证
         auth = self.headers.get("Authorization", "")
-        return auth.startswith("Bearer ") and auth[7:] == pwd
+        if not auth.startswith("Bearer "):
+            return False
+        token = auth[7:]
+
+        # 支持旧的直接密码验证（兼容）
+        if token == pwd:
+            return True
+
+        # 支持新的 token 验证
+        if hasattr(self.__class__, '_active_tokens'):
+            import time
+            expiry = self.__class__._active_tokens.get(token)
+            if expiry and time.time() < expiry:
+                return True
+            # 清理过期 token
+            if expiry:
+                del self.__class__._active_tokens[token]
+        return False
 
     def _require_auth(self):
         if not self._check_auth():
             self._send_json({"error": "未授权"}, 401)
             return False
+        return True
+
+    def _dispatch_plugin_route(self, method: str):
+        """将当前请求分发给插件路由"""
+        pm = getattr(self, "plugin_manager", None)
+        if not pm:
+            return None
+
+        # 解析 body（支持 multipart）
+        body = None
+        file_data = None
+        file_name = None
+        if method in ("POST", "PUT", "PATCH"):
+            ctype = self.headers.get("Content-Type", "")
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length > 0:
+                raw = bytearray()
+                remaining = content_length
+                while remaining > 0:
+                    chunk = self.rfile.read(min(remaining, 65536))
+                    if not chunk:
+                        break
+                    raw.extend(chunk)
+                    remaining -= len(chunk)
+                body = bytes(raw)
+
+                # multipart: 提取文件
+                if "multipart/form-data" in ctype:
+                    m = _re.search(r"boundary=(.+)", ctype)
+                    if m:
+                        boundary = m.group(1).strip('"').strip("'")
+                        sep = b"--" + boundary.encode()
+                        parts = body.split(sep)
+                        for part in parts:
+                            if b"Content-Disposition" not in part:
+                                continue
+                            idx = part.find(b"\r\n\r\n")
+                            if idx >= 0:
+                                hdr_end = idx + 4
+                            else:
+                                idx = part.find(b"\n\n")
+                                if idx < 0:
+                                    continue
+                                hdr_end = idx + 2
+                            hdr_raw = part[:idx].decode("utf-8", errors="replace")
+                            content = part[hdr_end:]
+                            if content.endswith(b"\r\n"):
+                                content = content[:-2]
+                            if content.endswith(b"\n"):
+                                content = content[:-1]
+                            if 'name="file"' in hdr_raw:
+                                fn_m = _re.search(r'filename="([^"]*)"', hdr_raw)
+                                if fn_m:
+                                    file_name = fn_m.group(1)
+                                file_data = content
+
+        headers = {k: v for k, v in self.headers.items()}
+        result = pm.dispatch_http(
+            method=method,
+            path=self.path,
+            headers=headers,
+            body=body,
+            file_data=file_data,
+            file_name=file_name,
+        )
+        if result is None:
+            return None
+
+        # 解析返回值
+        if len(result) == 3:
+            data, code, content_type = result
+            if isinstance(data, (bytes, bytearray)):
+                self.send_response(code)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Access-Control-Allow-Origin", self._get_allowed_origin())
+                self.end_headers()
+                self.wfile.write(data)
+            elif isinstance(data, str):
+                encoded = data.encode("utf-8")
+                self.send_response(code)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Content-Length", str(len(encoded)))
+                self.send_header("Access-Control-Allow-Origin", self._get_allowed_origin())
+                self.end_headers()
+                self.wfile.write(encoded)
+            else:
+                self._send_json(data, code)
+        elif len(result) == 2:
+            data, code = result
+            if isinstance(data, (bytes, bytearray)):
+                self.send_response(code)
+                self.send_header("Content-Type", "application/octet-stream")
+                self.send_header("Content-Length", str(len(data)))
+                self.send_header("Access-Control-Allow-Origin", self._get_allowed_origin())
+                self.end_headers()
+                self.wfile.write(data)
+            elif isinstance(data, str):
+                encoded = data.encode("utf-8")
+                self.send_response(code)
+                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.send_header("Content-Length", str(len(encoded)))
+                self.send_header("Access-Control-Allow-Origin", self._get_allowed_origin())
+                self.end_headers()
+                self.wfile.write(encoded)
+            else:
+                self._send_json(data, code)
         return True
 
     def do_POST(self):
@@ -96,6 +269,10 @@ class HederaHandler(BaseHTTPRequestHandler):
             return self._handle_tools()
         elif path == "/config":
             return self._handle_post_config()
+        elif path == "/api/presets":
+            return self._handle_save_preset()
+        elif path == "/api/presets/apply":
+            return self._handle_apply_preset()
         elif path == "/sessions":
             return self._handle_create_session()
         elif path == "/sessions/clear_all":
@@ -111,6 +288,10 @@ class HederaHandler(BaseHTTPRequestHandler):
         elif path == "/upload":
             return self._handle_upload()
         else:
+            # 尝试插件路由分发
+            result = self._dispatch_plugin_route("POST")
+            if result is not None:
+                return
             self._send_error(404)
 
     def do_DELETE(self):
@@ -119,11 +300,18 @@ class HederaHandler(BaseHTTPRequestHandler):
         parsed = _re.match(r"^/sessions/([^/]+)$", self.path.rstrip("/"))
         if parsed:
             return self._handle_delete_session(parsed.group(1))
+        parsed = _re.match(r"^/api/presets/([^/]+)$", self.path.rstrip("/"))
+        if parsed:
+            return self._handle_delete_preset(parsed.group(1))
+        # 插件路由分发
+        result = self._dispatch_plugin_route("DELETE")
+        if result is not None:
+            return
         self._send_error(404)
 
     def do_OPTIONS(self):
         self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", self._get_allowed_origin())
         self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type")
         self.send_header("Access-Control-Max-Age", "86400")
@@ -178,6 +366,10 @@ class HederaHandler(BaseHTTPRequestHandler):
             if not self._require_auth():
                 return
             return self._handle_get_config()
+        if path == "/api/context":
+            if not self._require_auth():
+                return
+            return self._handle_context_info()
         if path == "/test_key":
             if not self._require_auth():
                 return
@@ -202,6 +394,10 @@ class HederaHandler(BaseHTTPRequestHandler):
             if not self._require_auth():
                 return
             return self._handle_api_status()
+        if path == "/api/presets":
+            if not self._require_auth():
+                return
+            return self._handle_get_presets()
         if path == "/docs":
             file_path = os.path.join(os.path.dirname(__file__), "static", "docs.html")
             if os.path.isfile(file_path):
@@ -213,18 +409,6 @@ class HederaHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(data)
                 return
-        if path == "/docs":
-            file_path = os.path.join(os.path.dirname(__file__), "static", "docs.html")
-            if os.path.isfile(file_path):
-                with open(file_path, "rb") as f:
-                    data = f.read()
-                self.send_response(200)
-                self.send_header("Content-Type", "text/html; charset=utf-8")
-                self.send_header("Content-Length", str(len(data)))
-                self.end_headers()
-                self.wfile.write(data)
-                return
-        # 文件下载路由（不需认证，浏览器直接打开）
         parsed_dl = _re.match(r"^/download/([^/]+)/(.+)$", path)
         if parsed_dl:
             return self._handle_download(parsed_dl.group(1), parsed_dl.group(2))
@@ -236,6 +420,10 @@ class HederaHandler(BaseHTTPRequestHandler):
             return self._handle_list_files(parsed_fl.group(1))
         if path == "/status":
             return self._serve_status_page()
+        # 插件路由分发（GET 请求）
+        result = self._dispatch_plugin_route("GET")
+        if result is not None:
+            return
         # 静态文件
         if path == "" or path == "/":
             file_path = os.path.join(os.path.dirname(__file__), "static", "index_v2.html")
@@ -430,7 +618,16 @@ class HederaHandler(BaseHTTPRequestHandler):
             return self._send_json({"error": "bad json"}, 400)
         pwd = self._get_password()
         if data.get("password", "") == pwd:
-            return self._send_json({"token": pwd, "status": "ok"})
+            # 生成简单的 token（基于密码和时间戳）
+            import hashlib
+            import time
+            token_data = f"{pwd}:{time.time()}"
+            token = hashlib.sha256(token_data.encode()).hexdigest()[:32]
+            # 存储 token 以便验证（简单实现）
+            if not hasattr(self.__class__, '_active_tokens'):
+                self.__class__._active_tokens = {}
+            self.__class__._active_tokens[token] = time.time() + 3600  # 1小时过期
+            return self._send_json({"token": token, "status": "ok"})
         return self._send_json({"error": "wrong password"}, 401)
 
     def _handle_chat(self):
@@ -449,21 +646,38 @@ class HederaHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
             self.send_header("Cache-Control", "no-cache")
-            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Origin", self._get_allowed_origin())
             self.send_header("X-Request-Id", req_id)
             self.end_headers()
 
             from hedera.core.router import set_tool_progress, clear_tool_progress
 
+            # 标记处理中（刷新后前端可检测）
+            _sid_for_marker = session_id or "_default"
+            _progress_store = MemoryStore(self.data_dir, session_id=_sid_for_marker)
+            _progress_store.save_message("system", "[PROCESSING]", "marker")
+
             def _write_progress(name, args, result):
-                status = "success" if result.get("success") else "error"
-                ev = {"type": "tool", "name": name, "args": dict(args), "status": status}
-                if status == "error":
-                    ev["error"] = result.get("error", "")[:100]
+                try:
+                    if not isinstance(result, dict):
+                        import traceback as _tb
+                        _tb.print_exc()
+                        result = {"success": False, "error": f"tool result is {type(result).__name__}: {str(result)[:200]}"}
+                    status = "success" if result.get("success") else "error"
+                    ev = {"type": "tool", "name": name, "args": dict(args), "status": status}
+                    if status == "error":
+                        ev["error"] = result.get("error", "")[:100]
+                except Exception as _wpe:
+                    import traceback as _tb
+                    _tb.print_exc()
+                    ev = {"type": "tool", "name": name, "args": {}, "status": "error", "error": str(_wpe)}
                 # ndjson 流
-                self.wfile.write((json.dumps(ev, ensure_ascii=False) + "\n").encode("utf-8"))
-                self.wfile.flush()
-                # 进度存储（供轮询）
+                try:
+                    self.wfile.write((json.dumps(ev, ensure_ascii=False) + "\n").encode("utf-8"))
+                    self.wfile.flush()
+                except Exception:
+                    pass
+                # 进度存储（供轮询，不存 DB）
                 set_tool_progress(req_id, name, args, result)
 
             resp, actual_sid, files = process_message(
@@ -471,12 +685,41 @@ class HederaHandler(BaseHTTPRequestHandler):
                 on_tool_call=_write_progress
             )
             result_ev = {"type": "result", "response": resp, "session_id": actual_sid, "files": files}
-            self.wfile.write((json.dumps(result_ev, ensure_ascii=False) + "\n").encode("utf-8"))
-            self.wfile.flush()
+            try:
+                self.wfile.write((json.dumps(result_ev, ensure_ascii=False) + "\n").encode("utf-8"))
+                self.wfile.flush()
+            except Exception:
+                # 连接断了，但回复已存进DB，不算错误
+                pass
+            # 删除 [PROCESSING] 标记
+            try:
+                _cc = _progress_store._get_conn()
+                _cc.execute("DELETE FROM messages WHERE session_id = ? AND role = 'system' AND content = '[PROCESSING]'", (_sid_for_marker,))
+                _cc.commit()
+                _cc.close()
+            except Exception:
+                pass
             clear_tool_progress(req_id)
         except Exception as e:
+            import traceback as _tb
+            _tb.print_exc()
+            # 只在 process_message 本身出错时才存错误到DB（连接断开不算）
+            err_str = str(e)
+            # 删除 [PROCESSING] 标记
             try:
-                err_ev = {"type": "error", "error": str(e)}
+                _ec = _progress_store._get_conn()
+                _ec.execute("DELETE FROM messages WHERE session_id = ? AND role = 'system' AND content = '[PROCESSING]'", (_sid_for_marker,))
+                _ec.commit()
+                _ec.close()
+            except Exception:
+                pass
+            if '10054' not in err_str and 'ConnectionReset' not in err_str and 'Broken pipe' not in err_str:
+                try:
+                    _progress_store.save_message("assistant", f"\u274c \u5904\u7406\u51fa\u9519: {err_str[:500]}", "error")
+                except Exception:
+                    pass
+            try:
+                err_ev = {"type": "error", "error": err_str}
                 self.wfile.write((json.dumps(err_ev, ensure_ascii=False) + "\n").encode("utf-8"))
                 self.wfile.flush()
             except Exception:
@@ -506,7 +749,7 @@ class HederaHandler(BaseHTTPRequestHandler):
 
             # 根据 endpoint 类型选择请求模式
             if "/chat/completions" in endpoint:
-                # Mimo TTS 格式：文本放 assistant，认证用 api-key 头
+                # Chat-completions TTS 格式
                 ep = endpoint.rstrip("/")
                 payload = {
                     "model": model,
@@ -516,12 +759,13 @@ class HederaHandler(BaseHTTPRequestHandler):
                     ],
                     "audio": {
                         "format": "wav",
-                        "voice": voice or "mimo_default"
+                        "voice": voice or "alloy"
                     }
                 }
-                resp = _req.post(ep, json=payload,
-                    headers={"api-key": api_key, "Content-Type": "application/json"},
-                    timeout=30)
+                headers = {"Content-Type": "application/json"}
+                if api_key:
+                    headers["Authorization"] = f"Bearer {api_key}"
+                resp = _req.post(ep, json=payload, headers=headers, timeout=30)
                 resp.raise_for_status()
                 resp_data = resp.json()
                 try:
@@ -596,8 +840,10 @@ class HederaHandler(BaseHTTPRequestHandler):
                 voice = fields.get("cfgTtsVoice", "alloy")
                 if not ep: ep = self.config.get("model", {}).get("endpoint", "")
                 if "/chat/completions" in ep:
-                    r = _req.post(ep, json={"model": model, "messages": [{"role": "user", "content": "test"}, {"role": "assistant", "content": ""}], "audio": {"format": "wav", "voice": voice or "mimo_default"}},
-                        headers={"api-key": key}, timeout=15)
+                    headers = {"Content-Type": "application/json"}
+                    if key: headers["Authorization"] = f"Bearer {key}"
+                    r = _req.post(ep, json={"model": model, "messages": [{"role": "user", "content": "test"}, {"role": "assistant", "content": ""}], "audio": {"format": "wav", "voice": voice or "alloy"}},
+                        headers=headers, timeout=15)
                     r.raise_for_status()
                     return self._send_json({"ok": True})
                 return self._send_json({"error": "TTS endpoint not supported"}, 400)
@@ -695,8 +941,10 @@ class HederaHandler(BaseHTTPRequestHandler):
     def _handle_clear_all_sessions(self):
         """清除所有用户会话"""
         from hedera.core.memory_store import MemoryStore
+        from hedera.core.router import clear_all_sessions_cache
         store = MemoryStore(self.data_dir, session_id="_api")
         count = store.clear_all_sessions()
+        clear_all_sessions_cache()
         return self._send_json({"status": "ok", "deleted_count": count, "message": f"已清除 {count} 个会话"})
 
     # ─── 文件上传 / 下载 ───
@@ -719,7 +967,17 @@ class HederaHandler(BaseHTTPRequestHandler):
             if not m:
                 return self._send_json({"error": "未找到 boundary"}, 400)
             boundary = m.group(1).strip('"').strip("'")
-            body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            # 流式读取完整请求体（大文件时 rfile.read 可能只读到部分数据）
+            content_length = int(self.headers.get("Content-Length", 0))
+            body = bytearray()
+            remaining = content_length
+            while remaining > 0:
+                chunk = self.rfile.read(min(remaining, 65536))
+                if not chunk:
+                    break
+                body.extend(chunk)
+                remaining -= len(chunk)
+            body = bytes(body)
             
             # 手动解析 multipart 块
             session_id = ""
@@ -806,7 +1064,7 @@ class HederaHandler(BaseHTTPRequestHandler):
             ascii_name = urllib.parse.quote(filename, safe='')
             encoded_name = urllib.parse.quote(filename, safe='')
             self.send_header("Content-Disposition", f'attachment; filename="{ascii_name}"; filename*=UTF-8\'\'{encoded_name}')
-            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Origin", self._get_allowed_origin())
             self.end_headers()
             with open(file_path, "rb") as f:
                 while True:
@@ -859,7 +1117,7 @@ class HederaHandler(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", self._get_allowed_origin())
         self.end_headers()
         self.wfile.write(body)
 
@@ -872,7 +1130,7 @@ class HederaHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
-            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Origin", self._get_allowed_origin())
             self.end_headers()
             self.wfile.write(data)
         else:
@@ -883,7 +1141,7 @@ class HederaHandler(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", self._get_allowed_origin())
         self.end_headers()
         self.wfile.write(body)
 
@@ -900,21 +1158,8 @@ class HederaHandler(BaseHTTPRequestHandler):
         return self._send_json({"tools": tools_data})
 
     def _handle_training_pulse(self):
-        """手动触发噪声脉冲（训练协议模块B）"""
-        try:
-            length = int(self.headers.get("Content-Length", 0))
-            body = json.loads(self.rfile.read(length).decode("utf-8")) if length else {}
-        except Exception:
-            body = {}
-        keyword = body.get("keyword", "")
-        source = body.get("source", "user")
-
-        signal_mgr = SignalManager(self.data_dir)
-        ok = signal_mgr.write_pulse(keyword=keyword, source=source)
-        if ok:
-            return self._send_json({"success": True, "message": f"脉冲已触发: {keyword or '随机'}"})
-        else:
-            return self._send_error(500, "写入脉冲失败")
+        """训练协议已禁用"""
+        return self._send_json({"success": False, "message": "自提问功能已关闭"})
 
     def _handle_test_key(self):
         """Test the current DeepSeek API key"""
@@ -985,6 +1230,67 @@ class HederaHandler(BaseHTTPRequestHandler):
                 "api_key_masked": masked
             })
         return self._send_json(result)
+
+    def _handle_context_info(self):
+        """返回当前会话的上下文用量（优先用 API 返回的精确 token 数）"""
+        # 从 query string 获取 session_id
+        qs = self.path.split("?")[1] if "?" in self.path else ""
+        sid = "_default"
+        for part in qs.split("&"):
+            if part.startswith("session_id="):
+                sid = part.split("=", 1)[1]
+                break
+        from hedera.core.router import ensure_store, get_last_api_usage
+        from hedera.core.memory import build_system_prompt
+        store = ensure_store(config=self.config, session_id=sid)
+        history = store.get_recent_history(limit=200)
+        # 只计算真正的用户/助手消息
+        user_assistant_msgs = [m for m in history if m.get("role") in ("user", "assistant") and m.get("task_type") != "proactive"]
+        msg_count = len(user_assistant_msgs)
+
+        # 优先用 API 返回的精确 token 数
+        usage = get_last_api_usage()
+        api_prompt_tokens = usage.get("prompt_tokens", 0)
+        api_completion_tokens = usage.get("completion_tokens", 0)
+        api_total_tokens = usage.get("total_tokens", 0)
+
+        # 字符数统计（只算真实对话）
+        history_chars = sum(len(m.get("content", "")) for m in user_assistant_msgs)
+        try:
+            sys_prompt = build_system_prompt(self.config)
+            sys_chars = len(sys_prompt)
+        except Exception:
+            sys_chars = 2000
+        total_chars = history_chars + sys_chars
+
+        # 上下文窗口：优先从配置读取，否则按模型推断
+        max_ctx = self.config.get("model", {}).get("context_window", 0)
+        if not max_ctx:
+            from hedera.core.context_manager import estimate_max_context
+            model_name = self.config.get("model", {}).get("name", "")
+            max_ctx = estimate_max_context(model_name)
+
+        # 用 API 的 prompt_tokens 作为真实上下文用量
+        if api_total_tokens > 0:
+            est_tokens = api_total_tokens
+        elif api_prompt_tokens > 0:
+            est_tokens = api_prompt_tokens
+        else:
+            est_tokens = int(total_chars / 2.5)  # fallback
+
+        return self._send_json({
+            "session_id": sid,
+            "message_count": msg_count,
+            "history_chars": history_chars,
+            "system_chars": sys_chars,
+            "total_chars": total_chars,
+            "prompt_tokens": api_prompt_tokens,
+            "completion_tokens": api_completion_tokens,
+            "total_tokens": api_total_tokens,
+            "estimated_tokens": est_tokens,
+            "max_context_tokens": max_ctx,
+            "usage_pct": round(est_tokens / max_ctx * 100, 1) if max_ctx > 0 else 0,
+        })
 
     def _handle_post_config(self):
         data = self._parse_body()
@@ -1090,6 +1396,108 @@ class HederaHandler(BaseHTTPRequestHandler):
             _le("Failed to save config", source="config_save", exc=e)
         return self._send_json({"status": "ok", "updated": updates})
 
+    # ─── 预设管理 API ───
+
+    def _handle_get_presets(self):
+        data = _load_presets_file(self.data_dir)
+        return self._send_json(data)
+
+    def _handle_save_preset(self):
+        body = self._parse_body()
+        if not body or "name" not in body or "category" not in body:
+            return self._send_json({"error": "missing name or category"}, 400)
+        cat = body["category"]
+        if cat not in ("llm", "img", "tts"):
+            return self._send_json({"error": "category must be llm/img/tts"}, 400)
+        name = body["name"].strip()
+        if not name:
+            return self._send_json({"error": "name is empty"}, 400)
+        preset = {"name": name}
+        # 复制所有字段（排除 name/category）
+        for k, v in body.items():
+            if k not in ("name", "category"):
+                preset[k] = v
+        data = _load_presets_file(self.data_dir)
+        presets = data["presets"].get(cat, [])
+        # 覆盖同名
+        for i, p in enumerate(presets):
+            if p["name"] == name:
+                presets[i] = preset
+                break
+        else:
+            presets.append(preset)
+        data["presets"][cat] = presets
+        _save_presets_file(self.data_dir, data)
+        return self._send_json({"status": "ok", "name": name})
+
+    def _handle_delete_preset(self, name):
+        import urllib.parse
+        name = urllib.parse.unquote(name)
+        data = _load_presets_file(self.data_dir)
+        found = False
+        for cat in ("llm", "img", "tts"):
+            presets = data["presets"].get(cat, [])
+            for i, p in enumerate(presets):
+                if p["name"] == name:
+                    presets.pop(i)
+                    found = True
+                    break
+            if found:
+                break
+        if not found:
+            return self._send_json({"error": "preset not found"}, 404)
+        _save_presets_file(self.data_dir, data)
+        return self._send_json({"status": "ok", "name": name})
+
+    def _handle_apply_preset(self):
+        body = self._parse_body()
+        if not body or "name" not in body or "category" not in body:
+            return self._send_json({"error": "missing name or category"}, 400)
+        cat = body["category"]
+        name = body["name"].strip()
+        data = _load_presets_file(self.data_dir)
+        presets = data["presets"].get(cat, [])
+        preset = None
+        for p in presets:
+            if p["name"] == name:
+                preset = p
+                break
+        if not preset:
+            return self._send_json({"error": "preset not found"}, 404)
+        # 按分类热更新 config
+        if cat == "llm":
+            if "cfgModelName" in preset:
+                self.config["model"]["name"] = preset["cfgModelName"]
+            if "cfgModelEndpoint" in preset:
+                self.config["model"]["endpoint"] = preset["cfgModelEndpoint"]
+            if "cfgModelKey" in preset:
+                self.config["model"]["api_key"] = preset["cfgModelKey"]
+                env = self.config["model"].get("api_key_env", "HEDERA_API_KEY")
+                os.environ[env] = preset["cfgModelKey"]
+        elif cat == "img":
+            if "cfgImgModel" in preset:
+                self.config.setdefault("image_gen", {})["model"] = preset["cfgImgModel"]
+            if "cfgImgEndpoint" in preset:
+                self.config.setdefault("image_gen", {})["endpoint"] = preset["cfgImgEndpoint"]
+            if "cfgImgKey" in preset:
+                self.config.setdefault("image_gen", {})["api_key"] = preset["cfgImgKey"]
+                env = self.config["image_gen"].get("api_key_env", "HEDERA_IMAGE_KEY")
+                os.environ[env] = preset["cfgImgKey"]
+            from hedera.core.tools import set_image_gen_config
+            set_image_gen_config(self.config.get("image_gen", {}))
+        elif cat == "tts":
+            if "cfgTtsModel" in preset:
+                self.config.setdefault("tts", {})["model"] = preset["cfgTtsModel"]
+            if "cfgTtsVoice" in preset:
+                self.config.setdefault("tts", {})["voice"] = preset["cfgTtsVoice"]
+            if "cfgTtsEndpoint" in preset:
+                self.config.setdefault("tts", {})["endpoint"] = preset["cfgTtsEndpoint"]
+            if "cfgTtsKey" in preset:
+                self.config.setdefault("tts", {})["api_key"] = preset["cfgTtsKey"]
+                env = self.config["tts"].get("api_key_env", "HEDERA_TTS_KEY")
+                os.environ[env] = preset["cfgTtsKey"]
+        return self._send_json({"status": "ok", "name": name, "category": cat})
+
     def _send_error(self, code, msg=""):
         self._send_json({"error": msg or "not found"}, code)
 
@@ -1098,6 +1506,31 @@ class HederaHandler(BaseHTTPRequestHandler):
 
 
 _config_manager = None
+_plugin_manager = None
+
+
+def _start_meme_scheduler():
+    """启动热梗学习定时器（每周一次）"""
+    import threading
+    from hedera.core.logger import info as _minfo
+
+    def _meme_scheduler_loop():
+        # 启动后等待 5 分钟再执行第一次（避免启动时负载过高）
+        import time
+        time.sleep(300)
+        while True:
+            try:
+                _minfo("Meme learner: starting weekly update")
+                from hedera.core.meme_learner import weekly_update
+                weekly_update()
+                _minfo("Meme learner: weekly update completed")
+            except Exception as e:
+                _minfo("Meme learner: update failed", error=str(e))
+            # 等待 7 天
+            time.sleep(7 * 24 * 3600)
+
+    t = threading.Thread(target=_meme_scheduler_loop, daemon=True)
+    t.start()
 
 
 def run_server(config_path: str):
@@ -1125,6 +1558,25 @@ def run_server(config_path: str):
 
     HederaHandler.config = config
     HederaHandler.data_dir = data_dir
+
+    # 初始化插件管理器
+    global _plugin_manager
+    from hedera.plugin.manager import PluginManager
+    _plugin_manager = PluginManager()
+    project_dir = os.path.dirname(os.path.abspath(config_path))
+    _plugin_manager.load_from_dirs([
+        os.path.join(project_dir, "plugins"),
+    ])
+    # 加载技能
+    skills_dir = os.path.join(project_dir, "skills")
+    _plugin_manager.load_skills(skills_dir)
+    HederaHandler.plugin_manager = _plugin_manager
+    from hedera.core.logger import info as _pinfo
+    loaded = _plugin_manager.list_loaded()
+    _pinfo("Plugins loaded", count=len(loaded), names=[p["name"] for p in loaded])
+
+    # 启动热梗学习定时器（每周一次）
+    _start_meme_scheduler()
 
     host = config.get("server", {}).get("host", "0.0.0.0")
     port = config.get("server", {}).get("port", 36313)

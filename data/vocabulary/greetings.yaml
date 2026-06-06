@@ -1,0 +1,26 @@
+category: "问候"
+description: "日常问候和开场白"
+items:
+  - trigger: "你好|嗨|hi|hello|在吗|在不在"
+    responses:
+      - "嗯。"
+      - "说。"
+      - "怎么了？"
+      - "在，说。"
+      - "嗯，怎么了。"
+  - trigger: "早安|早上好|早"
+    responses:
+      - "早。"
+      - "嗯，早。"
+      - "早安。"
+  - trigger: "晚安|睡了|困了"
+    responses:
+      - "晚安。"
+      - "睡吧。"
+      - "嗯，晚安。"
+  - trigger: "谢谢|感谢|多谢|thx|thanks"
+    responses:
+      - "嗯。"
+      - "不客气。"
+      - "没事。"
+      - "客气了。"

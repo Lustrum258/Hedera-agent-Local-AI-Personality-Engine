@@ -1,0 +1,271 @@
+category: "热梗"
+description: "网络热梗和流行语的回应"
+items:
+  - trigger: "遥遥领先"
+    responses:
+      - "遥遥领先。"
+      - "确实领先。"
+      - "嗯，领先。"
+  - trigger: "遥遥落后"
+    responses:
+      - "落后就落后呗。"
+      - "那又怎样。"
+  - trigger: "泰裤辣|太酷啦"
+    responses:
+      - "确实酷。"
+      - "还行吧。"
+      - "嗯。"
+  - trigger: "绝绝子|绝了"
+    responses:
+      - "绝了。"
+      - "确实绝。"
+      - "嗯。"
+  - trigger: "yyds|永远的神"
+    responses:
+      - "神不神的不知道，能用就行。"
+      - "嗯。"
+      - "还行。"
+  - trigger: "破防了|我破防"
+    responses:
+      - "破就破了。"
+      - "没事。"
+      - "嗯，理解。"
+  - trigger: "绷不住了|蚌埠住了"
+    responses:
+      - "那就别绷了。"
+      - "笑吧。"
+  - trigger: "润了|我润了"
+    responses:
+      - "润吧。"
+      - "嗯。"
+      - "去哪？"
+  - trigger: "卷|太卷了|卷死了"
+    responses:
+      - "卷就卷呗。"
+      - "不卷怎么活。"
+      - "嗯。"
+  - trigger: "摆烂|我摆烂了"
+    responses:
+      - "摆吧。"
+      - "偶尔摆摆也没事。"
+      - "嗯。"
+  - trigger: "内卷"
+    responses:
+      - "正常。"
+      - "嗯。"
+      - "卷就卷呗。"
+  - trigger: "躺平|我躺平了"
+    responses:
+      - "躺吧。"
+      - "偶尔躺躺也行。"
+      - "嗯。"
+  - trigger: "emo|我emo了"
+    responses:
+      - "怎么了？"
+      - "说说看。"
+      - "嗯，听着呢。"
+  - trigger: "社死|社死了"
+    responses:
+      - "没事，过几天就没人记得了。"
+      - "嗯。"
+      - "谁还没社死过。"
+  - trigger: "DNA动了"
+    responses:
+      - "嗯。"
+      - "懂。"
+  - trigger: "上分|上大分"
+    responses:
+      - "加油。"
+      - "嗯。"
+  - trigger: "下饭|下饭操作"
+    responses:
+      - "确实下饭。"
+      - "嗯。"
+  - trigger: "寄|我寄了"
+    responses:
+      - "寄就寄了。"
+      - "没事。"
+      - "嗯。"
+  - trigger: "谢谢你|谢谢你啊"
+    responses:
+      - "嗯。"
+      - "不客气。"
+      - "客气了。"
+  - trigger: "家人们"
+    responses:
+      - "嗯。"
+      - "说。"
+      - "怎么了？"
+  - trigger: "谁懂|谁懂啊"
+    responses:
+      - "我懂。"
+      - "嗯。"
+      - "说说看。"
+  - trigger: "无语|我真的会谢"
+    responses:
+      - "嗯。"
+      - "无语就别说了。"
+  - trigger: "6|六"
+    responses:
+      - "嗯。"
+      - "还行。"
+  - trigger: "赢麻了"
+    responses:
+      - "嗯。"
+      - "确实赢了。"
+  - trigger: "输麻了"
+    responses:
+      - "没事。"
+      - "下次赢回来。"
+  - trigger: "格局打开"
+    responses:
+      - "嗯。"
+      - "格局。"
+  - trigger: "格局小了"
+    responses:
+      - "那大点。"
+      - "嗯。"
+  - trigger: "属于是"
+    responses:
+      - "嗯。"
+      - "属于是。"
+  - trigger: "有一说一"
+    responses:
+      - "嗯，说。"
+      - "有一说一。"
+  - trigger: "不是哥们|不是吧"
+    responses:
+      - "是的。"
+      - "嗯。"
+  - trigger: "我直接"
+    responses:
+      - "直接什么？"
+      - "嗯。"
+  - trigger: "这波|这波啊"
+    responses:
+      - "这波。"
+      - "嗯。"
+  - trigger: "什么水平"
+    responses:
+      - "一般水平。"
+      - "还行。"
+  - trigger: "建议不要"
+    responses:
+      - "嗯。"
+      - "听你的。"
+  - trigger: "有被笑到|笑死我了"
+    responses:
+      - "嗯。"
+      - "有那么好笑吗。"
+  - trigger: "我哭死"
+    responses:
+      - "别哭。"
+      - "嗯。"
+  - trigger: "真的假的"
+    responses:
+      - "真的。"
+      - "嗯。"
+  - trigger: "你礼貌吗"
+    responses:
+      - "礼貌。"
+      - "嗯。"
+  - trigger: "什么档次"
+    responses:
+      - "普通档次。"
+      - "嗯。"
+  - trigger: "你在教我做事"
+    responses:
+      - "没有。"
+      - "嗯。"
+  - trigger: "我直接一个"
+    responses:
+      - "一个什么？"
+      - "嗯。"
+  - trigger: "这谁顶得住"
+    responses:
+      - "顶得住。"
+      - "嗯。"
+  - trigger: "细说"
+    responses:
+      - "说来话长。"
+      - "嗯，具体说说。"
+  - trigger: "展开说说"
+    responses:
+      - "好，展开说。"
+      - "嗯。"
+  - trigger: "懂的都懂"
+    responses:
+      - "嗯。"
+      - "懂。"
+  - trigger: "不懂的说了也不懂"
+    responses:
+      - "嗯。"
+      - "那就别说了。"
+  - trigger: "你品|你细品"
+    responses:
+      - "品。"
+      - "嗯。"
+  - trigger: "味太冲了"
+    responses:
+      - "确实冲。"
+      - "嗯。"
+  - trigger: "有内味了"
+    responses:
+      - "嗯。"
+      - "有那味了。"
+  - trigger: "好家伙"
+    responses:
+      - "好家伙。"
+      - "嗯。"
+  - trigger: "离谱|太离谱了"
+    responses:
+      - "确实离谱。"
+      - "嗯。"
+  - trigger: "抽象|太抽象了"
+    responses:
+      - "确实抽象。"
+      - "嗯。"
+  - trigger: "逆天|太逆天了"
+    responses:
+      - "确实逆天。"
+      - "嗯。"
+  - trigger: "典|太典了"
+    responses:
+      - "典。"
+      - "嗯。"
+  - trigger: "孝|太孝了"
+    responses:
+      - "嗯。"
+      - "孝。"
+  - trigger: "急了|你急了"
+    responses:
+      - "没急。"
+      - "嗯。"
+  - trigger: "乐|太乐了"
+    responses:
+      - "乐。"
+      - "嗯。"
+  - trigger: "蚌|蚌埠"
+    responses:
+      - "蚌。"
+      - "嗯。"
+  - trigger: "麻了"
+    responses:
+      - "麻。"
+      - "嗯。"
+  - trigger: "寄"
+    responses:
+      - "寄。"
+      - "嗯。"
+  - trigger: "润"
+    responses:
+      - "润。"
+      - "嗯。"
+  - trigger: "摆"
+    responses:
+      - "摆。"
+      - "嗯。"
+  - trigger: "卷"
+    responses:
+      - "卷。"
+      - "嗯。"

@@ -65,7 +65,7 @@ def _send_existing_file(source_path: str, display_name: str = "") -> dict:
         return {"success": False, "error": str(e)}
 
 
-def _create_download_file(filename: str, content: str, server_url: str = "http://112.17.187.18:36313") -> dict:
+def _create_download_file(filename: str, content: str, server_url: str = "") -> dict:
     """写文件到上传目录，返回下载 URL（供 AI 生成文件发给用户）"""
     if not _uploads_dir:
         return {"success": False, "error": "上传目录未配置，不可用"}
@@ -89,7 +89,11 @@ def _create_download_file(filename: str, content: str, server_url: str = "http:/
             f.write(content)
         # 返回完整URL，方便用户直接点击
         url = f"/download/_common/{safe_name}"
-        full_url = f"{server_url.rstrip('/')}{url}"
+        # 如果没有指定服务器URL，使用相对路径
+        if server_url:
+            full_url = f"{server_url.rstrip('/')}{url}"
+        else:
+            full_url = url
         return {
             "success": True,
             "file": safe_name,
@@ -101,7 +105,7 @@ def _create_download_file(filename: str, content: str, server_url: str = "http:/
 
 
 
-def _exec_shell(cmd: str, timeout: int = 30) -> dict:
+def _exec_shell(cmd: str, timeout: int = 120) -> dict:
     # 输入校验
     validation = validate_shell_command(cmd, timeout)
     if validation is not None:
@@ -109,8 +113,6 @@ def _exec_shell(cmd: str, timeout: int = 30) -> dict:
     try:
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True,
                                 timeout=timeout, encoding="utf-8", errors="replace")
-        # 执行完成后清理临时脚本文件
-        _cleanup_temp_scripts()
         return {
             "stdout": truncate_output(result.stdout),
             "stderr": truncate_output(result.stderr),
@@ -118,10 +120,8 @@ def _exec_shell(cmd: str, timeout: int = 30) -> dict:
             "success": result.returncode == 0,
         }
     except subprocess.TimeoutExpired:
-        _cleanup_temp_scripts()
         return {"stdout": "", "stderr": f"超时（{timeout}s）", "returncode": -1, "success": False}
     except Exception as e:
-        _cleanup_temp_scripts()
         return {"stdout": "", "stderr": str(e), "returncode": -1, "success": False}
 
 
@@ -165,7 +165,8 @@ def _write_file(path: str, content: str) -> dict:
             return {"success": False, "error": str(e)}
 
 
-def _read_file(path: str) -> dict:
+def _read_file(path: str, offset: int = 0, limit: int = 0) -> dict:
+    """读取文本文件。offset: 起始行号(从1开始), limit: 读取行数(0=全部)"""
     safe_path = validate_read_path(path)
     if safe_path is None:
         return {"success": False, "error": f"路径被阻止: {path[:60]}"}
@@ -174,15 +175,27 @@ def _read_file(path: str) -> dict:
         mtime = os.path.getmtime(safe_path)
     except Exception:
         mtime = 0
-    cache_key = f"file:{safe_path}:{mtime}"
+    cache_key = f"file:{safe_path}:{mtime}:{offset}:{limit}"
     cached = file_cache.get(cache_key)
     if cached is not None:
         return cached
     with _file_io_lock:
         try:
             with open(safe_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            result = {"success": True, "content": content}
+                lines = f.readlines()
+            total = len(lines)
+            if offset > 0:
+                lines = lines[offset - 1:]
+            if limit > 0:
+                lines = lines[:limit]
+            # 全量读取时限制为 200 行，超出时提示分段
+            if not offset and not limit and total > 200:
+                lines = lines[:200]
+                content = "".join(lines)
+                content += f"\n...（文件共 {total} 行，已显示前 200 行。用 offset=201 继续读取，或用 offset+limit 指定范围）"
+            else:
+                content = "".join(lines)
+            result = {"success": True, "content": content, "total_lines": total}
             file_cache.set(cache_key, result)
             return result
         except Exception as e:
@@ -197,11 +210,11 @@ def _list_dir(path: str) -> dict:
         try:
             items = []
             for item in sorted(os.listdir(safe_path)):
-                full = os.path.join(path, item)
+                full = os.path.join(safe_path, item)
                 items.append({"name": item,
                               "type": "dir" if os.path.isdir(full) else "file",
                               "size": os.path.getsize(full) if not os.path.isdir(full) else 0})
-            return {"success": True, "path": path, "items": items}
+            return {"success": True, "path": safe_path, "items": items}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -439,13 +452,213 @@ def call_tool(name: str, args: dict = None) -> dict:
         return {"success": False, "error": str(e)}
 
 
+def _grep_files(pattern: str, path: str = ".", include: str = "", max_results: int = 50, context: int = 0) -> dict:
+    """Recursively search file contents. Like grep -rn.
+    context: 匹配行前后各显示N行（默认0=只显示匹配行）"""
+    safe_path = validate_read_path(path)
+    if safe_path is None:
+        return {"success": False, "error": f"路径被阻止: {path[:60]}"}
+    try:
+        results = []
+        count = 0
+        regex = re.compile(pattern, re.IGNORECASE)
+        for root, dirs, files in os.walk(safe_path):
+            # Skip common non-useful directories
+            dirs[:] = [d for d in dirs if d not in (
+                '.git', 'node_modules', '__pycache__', '.venv', 'venv',
+                'env', '.env', '.idea', '.vscode', 'dist', 'build',
+                '.tox', '.eggs', '*.egg-info', 'hedera.db')]
+            for fname in files:
+                if include:
+                    ext = include if include.startswith('.') else f'.{include}'
+                    if not fname.endswith(ext):
+                        continue
+                fpath = os.path.join(root, fname)
+                # Skip binary files
+                if os.path.getsize(fpath) > 1_000_000:
+                    continue
+                try:
+                    with open(fpath, 'r', encoding='utf-8', errors='ignore') as f:
+                        all_lines = f.readlines()
+                    matched_lines = []
+                    for i, line in enumerate(all_lines):
+                        if regex.search(line):
+                            matched_lines.append(i)
+                    if not matched_lines:
+                        continue
+                    rel = os.path.relpath(fpath, safe_path)
+                    for line_idx in matched_lines:
+                        entry = {"file": rel, "line": line_idx + 1, "text": all_lines[line_idx].rstrip()[:200]}
+                        if context > 0:
+                            start = max(0, line_idx - context)
+                            end = min(len(all_lines), line_idx + context + 1)
+                            ctx_lines = []
+                            for ci in range(start, end):
+                                prefix = ">>>" if ci == line_idx else "   "
+                                ctx_lines.append(f"{prefix} {ci+1}: {all_lines[ci].rstrip()[:120]}")
+                            entry["context"] = "\n".join(ctx_lines)
+                        results.append(entry)
+                        count += 1
+                        if count >= max_results:
+                            return {"success": True, "results": results,
+                                    "truncated": True, "total_shown": count}
+                except Exception:
+                    continue
+        return {"success": True, "results": results, "truncated": False, "total_shown": count}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def _edit_file(path: str, old_text: str, new_text: str, occurrence: int = 1) -> dict:
+    """Precise text replacement in a file.
+    Finds exact old_text match and replaces with new_text.
+    occurrence: 第几个匹配项（从1开始，默认1=第一个）。
+    Use read_file first to see the current content."""
+    import difflib
+    safe_path = validate_write_path(path)
+    if safe_path is None:
+        return {"success": False, "error": f"路径被阻止: {path[:60]}"}
+    with _file_io_lock:
+        try:
+            with open(safe_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            # 统一换行符处理
+            work_content = content.replace('\r\n', '\n')
+            work_old = old_text.replace('\r\n', '\n')
+            work_new = new_text.replace('\r\n', '\n')
+            # 找到第 occurrence 个匹配
+            idx = -1
+            search_from = 0
+            for _ in range(occurrence):
+                idx = work_content.find(work_old, search_from)
+                if idx == -1:
+                    break
+                search_from = idx + len(work_old)
+            if idx == -1:
+                return {"success": False, "error": f"old_text 在文件中未找到第 {occurrence} 个匹配，用 read_file 确认当前内容"}
+            # 替换
+            new_content = work_content[:idx] + work_new + work_content[idx+len(work_old):]
+            # 如果原文件是 \r\n，还原回去
+            if '\r\n' in content and '\r\n' not in new_content:
+                new_content = new_content.replace('\n', '\r\n')
+            # 生成 diff（截取变更区域前后各3行）
+            old_lines = work_content.splitlines(keepends=True)
+            new_lines = new_content.splitlines(keepends=True)
+            diff = list(difflib.unified_diff(old_lines, new_lines, fromfile=f"a/{path}", tofile=f"b/{path}", n=3))
+            diff_text = "".join(diff)[:2000]  # 限制 diff 长度
+            # Atomic write
+            tmp_path = safe_path + '.hedera_tmp'
+            with open(tmp_path, 'w', encoding='utf-8') as f:
+                f.write(new_content)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_path, safe_path)
+            return {"success": True, "path": safe_path, "replacements": 1, "diff": diff_text}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+
+def _git_status(path: str = ".") -> dict:
+    """Get git status, branch, recent commits, and project structure."""
+    safe_path = validate_read_path(path)
+    if safe_path is None:
+        return {"success": False, "error": f"路径被阻止: {path[:60]}"}
+    result = {}
+    try:
+        # Git branch
+        r = subprocess.run(['git', 'branch', '--show-current'],
+                           capture_output=True, text=True, cwd=safe_path, timeout=5)
+        result['branch'] = r.stdout.strip() if r.returncode == 0 else ''
+        # Git status (short)
+        r = subprocess.run(['git', 'status', '--short'],
+                           capture_output=True, text=True, cwd=safe_path, timeout=5)
+        result['status'] = r.stdout.strip()[:2000] if r.returncode == 0 else ''
+        # Recent commits
+        r = subprocess.run(['git', 'log', '--oneline', '-5'],
+                           capture_output=True, text=True, cwd=safe_path, timeout=5)
+        result['recent_commits'] = r.stdout.strip()[:1000] if r.returncode == 0 else ''
+        # Diff (unstaged)
+        r = subprocess.run(['git', 'diff', '--stat'],
+                           capture_output=True, text=True, cwd=safe_path, timeout=5)
+        result['diff_stat'] = r.stdout.strip()[:1000] if r.returncode == 0 else ''
+    except Exception as e:
+        result['git_error'] = str(e)
+    # Project file tree (top 2 levels)
+    try:
+        tree_lines = []
+        skip = {'.git', 'node_modules', '__pycache__', '.venv', 'venv', 'env',
+                '.env', '.idea', 'dist', 'build', '.tox', '.eggs'}
+        for root, dirs, files in os.walk(safe_path):
+            depth = root.replace(safe_path, '').count(os.sep)
+            if depth > 1:
+                continue
+            dirs[:] = [d for d in dirs if d not in skip]
+            indent = '  ' * depth
+            basename = os.path.basename(root)
+            if depth > 0:
+                tree_lines.append(f"{indent}{basename}/")
+            for f in sorted(files)[:20]:
+                tree_lines.append(f"{indent}  {f}")
+        result['file_tree'] = '\n'.join(tree_lines[:80])
+    except Exception as e:
+        result['tree_error'] = str(e)
+    return {"success": True, **result}
+
+
+def _find_definition(name: str, path: str = ".", include: str = "") -> dict:
+    """Find where a function, class, or variable is defined.
+    Searches for common definition patterns like 'def name', 'class name', 'name =', etc."""
+    safe_path = validate_read_path(path)
+    if safe_path is None:
+        return {"success": False, "error": f"路径被阻止: {path[:60]}"}
+    try:
+        # 根据文件类型构建搜索模式
+        patterns = [
+            rf"^\s*(?:async\s+)?def\s+{re.escape(name)}\s*\(",  # Python function
+            rf"^\s*class\s+{re.escape(name)}\s*[\(:]",  # Python class
+            rf"^\s*{re.escape(name)}\s*=",  # Python variable assignment
+            rf"^\s*(?:export\s+)?(?:function|const|let|var)\s+{re.escape(name)}\b",  # JS function/variable
+            rf"^\s*(?:export\s+)?class\s+{re.escape(name)}\b",  # JS class
+            rf"^\s*(?:public|private|protected)?\s*(?:static\s+)?(?:\w+\s+)?{re.escape(name)}\s*\(",  # Java/C# method
+        ]
+        combined = "|".join(patterns)
+        results = []
+        for root, dirs, files in os.walk(safe_path):
+            dirs[:] = [d for d in dirs if d not in (
+                '.git', 'node_modules', '__pycache__', '.venv', 'venv',
+                'env', '.env', '.idea', '.vscode', 'dist', 'build')]
+            for fname in files:
+                if include:
+                    ext = include if include.startswith('.') else f'.{include}'
+                    if not fname.endswith(ext):
+                        continue
+                fpath = os.path.join(root, fname)
+                if os.path.getsize(fpath) > 1_000_000:
+                    continue
+                try:
+                    with open(fpath, 'r', encoding='utf-8', errors='ignore') as f:
+                        for i, line in enumerate(f, 1):
+                            if re.search(combined, line):
+                                rel = os.path.relpath(fpath, safe_path)
+                                results.append({"file": rel, "line": i, "text": line.rstrip()[:200]})
+                                if len(results) >= 20:
+                                    return {"success": True, "results": results, "truncated": True}
+                except Exception:
+                    continue
+        return {"success": True, "results": results, "truncated": False}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
 # 注册工具
 register_tool("exec_shell",
-              "Run shell commands. Dangerous commands blocked, 60s timeout.",
+              "Execute shell commands (PowerShell/cmd). Use for running code, installing packages, git operations. "
+              "Write code to files first with write_file, then execute. "
+              "Default 120s timeout, max 600s. Returns stdout, stderr, returncode.",
               _exec_shell, {"type": "object", "properties": {"cmd": {"type": "string"},
-                             "timeout": {"type": "integer", "default": 30}}, "required": ["cmd"]})
-register_tool("read_file", "Read a text file.", _read_file,
-              {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]})
+                             "timeout": {"type": "integer", "default": 120}}, "required": ["cmd"]})
+register_tool("read_file", "Read a text file. Large files are auto-truncated; use offset+limit to read in chunks.", _read_file,
+              {"type": "object", "properties": {"path": {"type": "string"}, "offset": {"type": "integer", "default": 0, "description": "Start line (1-based)"}, "limit": {"type": "integer", "default": 0, "description": "Max lines to read (0=all)"}}, "required": ["path"]})
 register_tool("write_file", "Write a text file.", _write_file,
               {"type": "object", "properties": {"path": {"type": "string"}, "content": {"type": "string"}},
                "required": ["path", "content"]})
@@ -459,6 +672,46 @@ register_tool("web_search", "Search the internet.", _web_search,
 register_tool("open_folder", "Open a folder in Explorer.",
               _open_folder, {"type": "object", "properties": {"path": {"type": "string", "description": "文件夹路径"}},
                            "required": ["path"]})
+register_tool("grep_files",
+              "Search file contents recursively. Like grep -rn. "
+              "Use this to find code, functions, variables across the project. "
+              "Returns file paths, line numbers, and matching text. "
+              "Filter by file extension with 'include' param (e.g. '.py', '.js'). "
+              "Use context=2 to see surrounding lines for better understanding.",
+              _grep_files, {"type": "object", "properties": {
+                  "pattern": {"type": "string", "description": "Regex pattern to search for"},
+                  "path": {"type": "string", "description": "Directory to search in (default: current dir)", "default": "."},
+                  "include": {"type": "string", "description": "File extension filter, e.g. '.py'", "default": ""},
+                  "max_results": {"type": "integer", "description": "Max results to return", "default": 50},
+                  "context": {"type": "integer", "description": "Show N lines before/after each match (default 0)", "default": 0}},
+              "required": ["pattern"]})
+register_tool("find_definition",
+              "Find where a function, class, or variable is defined. "
+              "Searches for 'def name', 'class name', 'name =' patterns across the project. "
+              "Use this instead of grep_files when looking for a specific symbol's definition.",
+              _find_definition, {"type": "object", "properties": {
+                  "name": {"type": "string", "description": "Function, class, or variable name to find"},
+                  "path": {"type": "string", "description": "Directory to search in", "default": "."},
+                  "include": {"type": "string", "description": "File extension filter", "default": ""}},
+              "required": ["name"]})
+register_tool("edit_file",
+              "Precise text replacement in a file. Finds exact old_text and replaces with new_text. "
+              "MUST use read_file first to see current content before editing. "
+              "old_text must match exactly (including whitespace and indentation). "
+              "Use occurrence parameter when the same text appears multiple times. "
+              "For new files or full rewrites, use write_file instead.",
+              _edit_file, {"type": "object", "properties": {
+                  "path": {"type": "string", "description": "File path"},
+                  "old_text": {"type": "string", "description": "Exact text to find and replace (must match exactly)"},
+                  "new_text": {"type": "string", "description": "Replacement text"},
+                  "occurrence": {"type": "integer", "description": "Which occurrence to replace (1-based, default 1)", "default": 1}},
+              "required": ["path", "old_text", "new_text"]})
+register_tool("git_status",
+              "Get project context: git branch, status, recent commits, diff stats, and file tree. "
+              "Call this first when starting work on a codebase to understand the project.",
+              _git_status, {"type": "object", "properties": {
+                  "path": {"type": "string", "description": "Project root directory", "default": "."}},
+              "required": []})
 def _cache_stats() -> dict:
     """查看缓存状态"""
     return {"success": True, "caches": {
@@ -484,6 +737,53 @@ def _clear_cache(target: str = "all") -> dict:
         return {"success": True, "message": f"{target} 缓存已清空"}
     return {"success": False, "error": f"未知缓存: {target}，可选: all/search/fetch/file"}
 
+
+
+def _run_python(code: str, timeout: int = 120) -> dict:
+    """Run Python code in a temp file with proper error handling."""
+    import tempfile
+    # 校验代码安全性（阻止危险模块和系统调用）
+    code_lower = code.lower()
+    for blocked in ["os.system", "subprocess.call", "subprocess.run", "subprocess.Popen",
+                    "shutil.rmtree", "os.remove", "os.unlink", "eval(", "exec("]:
+        if blocked in code_lower:
+            return {"success": False, "error": f"安全限制: 代码包含 '{blocked}'，已阻止执行"}
+    tmp = None
+    try:
+        tmp = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".py", delete=False, encoding="utf-8"
+        )
+        tmp.write(code)
+        tmp.close()
+        result = subprocess.run(
+            [sys.executable or "python", tmp.name],
+            capture_output=True, text=True,
+            timeout=timeout, encoding="utf-8", errors="replace"
+        )
+        return {
+            "stdout": truncate_output(result.stdout),
+            "stderr": truncate_output(result.stderr),
+            "returncode": result.returncode,
+            "success": result.returncode == 0,
+        }
+    except subprocess.TimeoutExpired:
+        return {"stdout": "", "stderr": f"超时（{timeout}s）", "returncode": -1, "success": False}
+    except Exception as e:
+        return {"stdout": "", "stderr": str(e), "returncode": -1, "success": False}
+    finally:
+        if tmp:
+            try:
+                os.unlink(tmp.name)
+            except Exception:
+                pass
+
+register_tool("run_python",
+              "Run Python code directly. Pass the full code as a string. "
+              "Use this instead of exec_shell for Python tasks. "
+              "Stdout and stderr are captured. Default 120s timeout.",
+              _run_python, {"type": "object", "properties": {
+                  "code": {"type": "string", "description": "Python code to execute"},
+                  "timeout": {"type": "integer", "default": 120}}, "required": ["code"]})
 
 register_tool("get_process_list", "List system processes.", _get_process_list,
               {"type": "object", "properties": {}, "required": []})
@@ -698,15 +998,53 @@ def _generate_image(prompt: str, size: str = "") -> dict:
 register_tool("generate_image",
               "Generate images from text description. Requires image_gen config in config.yaml. "
               "Returns image URLs in 'images' array and ready-to-use Markdown in 'markdown' field. "
+              "Optionally accepts an 'image' parameter with a reference image URL for image-to-image generation. "
               "CRITICAL: You MUST paste the 'markdown' content UNCHANGED into your response so the user can see the image. "
               "Your response should start with the markdown image.",
-              
               _generate_image,
               {"type": "object", "properties": {
                   "prompt": {"type": "string", "description": "English prompt works best for most models"},
                   "size": {"type": "string", "description": "Image size, e.g. 1024x1024, 1792x1024 (default from config)", "default": ""},
+                  "image": {"type": "string", "description": "Reference image URL (optional, for image-to-image)", "default": ""},
                },
                "required": ["prompt"]})
+
+# ─── 热梗学习 ───────────
+
+def _learn_meme(meme_text: str, trigger_words: list[str]) -> dict:
+    """学习新梗并更新词库"""
+    try:
+        from hedera.core.meme_learner import learn_meme
+        success = learn_meme(meme_text, trigger_words)
+        return {"success": success, "message": f"已学习热梗: {meme_text[:50]}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def _get_learned_memes() -> dict:
+    """获取已学习的热梗列表"""
+    try:
+        from hedera.core.meme_learner import get_learned_memes
+        memes = get_learned_memes()
+        return {"success": True, "count": len(memes), "memes": memes[:20]}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+register_tool("learn_meme",
+              "Learn a new internet meme and add it to the vocabulary. "
+              "Provide the meme description and trigger words.",
+              _learn_meme,
+              {"type": "object", "properties": {
+                  "meme_text": {"type": "string", "description": "Description of the meme"},
+                  "trigger_words": {"type": "array", "items": {"type": "string"}, "description": "List of trigger words"},
+               },
+               "required": ["meme_text", "trigger_words"]})
+
+register_tool("get_learned_memes",
+              "Get list of learned internet memes.",
+              _get_learned_memes,
+              {"type": "object", "properties": {}, "required": []})
 
 
 ALL_TOOL_NAMES = list(_TOOLS.keys())

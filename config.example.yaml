@@ -3,21 +3,21 @@ identity:
   name: 冬青
   soul: data/SOUL.md
 image_gen:
-  api_key: sk-62JmqwdDKaekwh6KjmcuVOBtaKfAetzk5rGK2giL8X0rrMnm
+  api_key: ""  # 或使用环境变量 HEDERA_IMAGE_KEY
   api_key_env: HEDERA_IMAGE_KEY
-  enabled: true
-  endpoint: https://cdn.sta1n.cn/v1/chat/completions
-  model: '[Web]gpt-image-2'
+  enabled: false
+  endpoint: ""  # 留空则自动从模型endpoint推导
+  model: "dall-e-3"
   n: 1
   provider: openai
   quality: standard
   size: 1024x1024
 model:
-  api_key: sk-bf30250cef794857bf2f6bb9bcc958d9
+  api_key: ""  # 或使用环境变量 HEDERA_API_KEY
   api_key_env: HEDERA_API_KEY
   endpoint: https://api.deepseek.com/v1/chat/completions
   max_tokens: 8192
-  name: deepseek-v4-flash
+  name: deepseek-chat
   temperature: 0.7
 noise:
   complex_strength: 0.08
@@ -30,14 +30,14 @@ search:
       enabled: true
       priority: 99
     tavily:
-      api_key: ''
+      api_key: ""  # 或使用环境变量 TAVILY_API_KEY
       api_key_env: TAVILY_API_KEY
-      enabled: true
+      enabled: false
       max_results: 5
       priority: 1
 server:
   host: 0.0.0.0
-  password: hedera2024
+  password: ""  # 设置你的密码
   port: 36313
 slider:
   auto_adjust: true
@@ -55,10 +55,10 @@ training:
   module_d: true
   pulse_interval: 300
 tts:
-  api_key: tp-s6dlfe1w7rbz2nn61iixu0c886bm1wpf3sn5391dk9yhzdxf
   api_key_env: HEDERA_TTS_KEY
-  enabled: true
-  endpoint: https://token-plan-sgp.xiaomimimo.com/v1/chat/completions
-  model: mimo-v2.5-tts
+  enabled: false
   provider: openai
-  voice: 茉莉
+  api_key: ""
+  model: tts-1
+  voice: alloy
+  endpoint: ""

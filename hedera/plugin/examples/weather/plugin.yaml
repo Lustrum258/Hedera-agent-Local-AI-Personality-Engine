@@ -1,8 +1,0 @@
-# plugin.yaml — 天气插件
-name: "天气"
-description: "查询实时天气"
-version: "1.0.0"
-author: "Hedera"
-keywords: ["天气", "温度", "多少度", "热不热", "冷不冷"]
-priority: 100
-standalone: false

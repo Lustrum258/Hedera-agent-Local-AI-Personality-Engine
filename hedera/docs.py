@@ -153,7 +153,7 @@ training:                  # 训练协议
 | GET | /api/reflection | 反思日志 |
 | GET | /api/experience | 经验蒸馏日志 |
 | GET | /tools | 可用工具列表 |
-| GET\|POST | /config | 配置查看/修改 |
+| GET\\|POST | /config | 配置查看/修改 |
 | GET | /test_key | 测试 API Key |
 | POST | /upload | 文件上传 |
 | GET | /download/{session}/{file} | 文件下载 |

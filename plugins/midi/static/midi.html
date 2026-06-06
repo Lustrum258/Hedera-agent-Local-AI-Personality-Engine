@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MIDI播放器</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#0a0a0f;color:#e0e0e0;min-height:100vh}
+.container{max-width:900px;margin:0 auto;padding:20px}
+h1{text-align:center;font-size:1.8em;margin:20px 0 30px;background:linear-gradient(135deg,#7c4dff,#448aff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.section{background:#1a1a2e;border-radius:12px;padding:20px;margin-bottom:20px;border:1px solid #2a2a4a}
+.section-title{font-size:1.1em;font-weight:600;margin-bottom:15px;color:#b0b0d0}
+.upload-zone{border:2px dashed #3a3a6a;border-radius:8px;padding:30px;text-align:center;cursor:pointer;transition:all .3s;margin-bottom:15px}
+.upload-zone:hover{border-color:#7c4dff;background:rgba(124,77,255,.05)}
+.upload-zone input{display:none}
+.upload-icon{font-size:2em;margin-bottom:10px}
+.upload-text{color:#888;font-size:.9em}
+.file-list{list-style:none}
+.file-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#12121f;border-radius:6px;margin-bottom:6px}
+.file-item:hover{background:#1e1e35}
+.file-name{flex:1;font-size:.9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-size{color:#666;font-size:.8em;margin:0 10px}
+.file-actions button{background:none;border:1px solid #3a3a6a;color:#aaa;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:.8em;margin-left:5px}
+.file-actions button:hover{border-color:#7c4dff;color:#fff}
+.file-actions button.play-btn:hover{border-color:#4caf50;color:#4caf50}
+.file-actions button.del-btn:hover{border-color:#f44336;color:#f44336}
+.player-area{background:#12121f;border-radius:8px;padding:20px;text-align:center;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.player-area .placeholder{color:#555;font-size:.9em}
+.now-playing{font-size:1em;margin-bottom:15px;color:#b0b0d0}
+.sf2-bar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.sf2-bar label{font-size:.85em;color:#888}
+.sf2-bar select{background:#12121f;color:#e0e0e0;border:1px solid #3a3a6a;border-radius:4px;padding:6px 10px;font-size:.85em;flex:1;min-width:200px}
+.mode-bar{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.mode-bar label{font-size:.85em;color:#888;cursor:pointer}
+.mode-bar input[type=radio]{accent-color:#7c4dff;margin-right:4px}
+.status{font-size:.8em;color:#666;margin-top:10px}
+.status.ok{color:#4caf50}
+.status.err{color:#f44336}
+audio{width:100%;max-width:500px;margin-top:12px;border-radius:8px}
+.progress-bar{width:100%;max-width:500px;height:4px;background:#2a2a3e;border-radius:2px;margin-top:10px;overflow:hidden}
+.progress-bar .fill{height:100%;background:linear-gradient(90deg,#7c4dff,#448aff);width:0%;transition:width .3s}
+.controls{display:flex;gap:10px;margin-top:12px}
+.controls button{background:#1a1a2e;border:1px solid #3a3a6a;color:#ccc;padding:8px 18px;border-radius:6px;cursor:pointer;font-size:.85em;transition:all .2s}
+.controls button:hover{border-color:#7c4dff;color:#fff}
+.controls button.active{border-color:#4caf50;color:#4caf50}
+#sf2Overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;justify-content:center;align-items:center}
+#sf2Overlay.show{display:flex}
+#sf2Overlay .box{background:#1a1a2e;border:1px solid #3a3a5c;border-radius:12px;padding:32px 40px;min-width:360px;text-align:center;color:#e0e0e0}
+#sf2Overlay .box h3{margin:0 0 18px;font-size:16px;font-weight:500;color:#fff}
+#sf2Overlay .bar-outer{background:#2a2a3e;border-radius:6px;height:10px;overflow:hidden;margin-bottom:12px}
+#sf2Overlay .bar-inner{height:100%;width:0%;border-radius:6px;background:linear-gradient(90deg,#667eea,#764ba2);transition:width .3s ease}
+#sf2Overlay .pct{font-size:13px;color:#888;margin-top:4px}
+#sf2Overlay .pct .num{color:#a78bfa;font-weight:600}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>MIDI 播放器</h1>
+  <div class="section">
+    <div class="section-title">音色库 (SF2)</div>
+    <div class="upload-zone" id="sf2Upload"><input type="file" id="sf2Input" accept=".sf2,.sf3,.dls"><div class="upload-icon">📦</div><div class="upload-text">点击或拖拽上传 SF2 音色库</div></div>
+    <ul class="file-list" id="sf2List"></ul>
+    <div class="sf2-bar"><label>当前音色：</label><select id="sf2Select"><option value="">加载中...</option></select></div>
+  </div>
+  <div class="section">
+    <div class="section-title">MIDI 文件</div>
+    <div class="upload-zone" id="midiUpload"><input type="file" id="midiInput" accept=".mid,.midi"><div class="upload-icon">🎵</div><div class="upload-text">点击或拖拽上传 MIDI 文件</div></div>
+    <ul class="file-list" id="midiList"></ul>
+  </div>
+  <div class="section">
+    <div class="section-title">播放</div>
+    <div class="mode-bar">
+      <label><input type="radio" name="playMode" value="sf2" checked> SF2 渲染</label>
+      <label><input type="radio" name="playMode" value="gm"> 系统合成</label>
+    </div>
+    <div class="player-area">
+      <div class="now-playing" id="nowPlaying"></div>
+      <div id="playerContainer"><div class="placeholder">选择一个 MIDI 文件开始播放</div></div>
+      <div class="progress-bar" id="gmProgress" style="display:none"><div class="fill" id="gmProgressFill"></div></div>
+      <div class="controls" id="gmControls" style="display:none">
+        <button id="btnPlay">▶ 播放</button>
+        <button id="btnPause">⏸ 暂停</button>
+        <button id="btnStop">⏹ 停止</button>
+      </div>
+      <div class="status" id="status"></div>
+      <audio id="audioPlayer" controls style="display:none"></audio>
+    </div>
+  </div>
+</div>
+<div id="sf2Overlay"><div class="box"><h3 id="sf2OverlayTitle">处理中</h3><div class="bar-outer"><div class="bar-inner" id="sf2Bar"></div></div><div class="pct" id="sf2Pct">准备中...</div></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/midi-player-js@2.0.16/browser/midiplayer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.js"></script>
+<script>
+var TOKEN = localStorage.getItem('hedera_token') || localStorage.getItem('hedera_password') || '';
+if (!TOKEN) {
+  document.querySelector('.container').innerHTML = '<h1>MIDI 播放器</h1><div class="section" style="text-align:center;padding:40px"><p style="color:#888;margin-bottom:16px">请先在主页面登录</p><a href="/" style="color:#7c4dff;text-decoration:underline">返回主页面</a></div>';
+}
+
+var API = {
+  midiUpload: '/api/midi/upload', midiList: '/api/midi/list',
+  midiDelete: function(n) { return '/api/midi/delete/' + encodeURIComponent(n); },
+  midiRender: function(n) { return '/api/midi/render/' + encodeURIComponent(n); },
+  sf2Upload: '/api/sf2/upload', sf2List: '/api/sf2/list',
+  sf2Delete: function(n) { return '/api/sf2/delete/' + encodeURIComponent(n); },
+};
+
+var audioPlayer = document.getElementById('audioPlayer');
+var gmProgress = document.getElementById('gmProgress');
+var gmProgressFill = document.getElementById('gmProgressFill');
+var gmControls = document.getElementById('gmControls');
+var midiPlayer = null;
+var audioCtx = null;
+var soundfont = null;
+var activeNodes = {};
+var instruments = {};
+var programMap = {};
+
+var SOUNDFONT_URL = 'https://cdn.jsdelivr.net/npm/@magenta/music@1.23.1/es6/soundfonts/salamander';
+var GM_INSTRUMENTS = [
+  'acoustic_grand_piano','bright_acoustic_piano','electric_grand_piano','honkytonk_piano',
+  'electric_piano_1','electric_piano_2','harpsichord','clavinet',
+  'celesta','glockenspiel','music_box','vibraphone',
+  'marimba','xylophone','tubular_bells','dulcimer',
+  'drawbar_organ','percussive_organ','rock_organ','church_organ',
+  'reed_organ','accordion','harmonica','tango_accordion',
+  'acoustic_guitar_nylon','acoustic_guitar_steel','electric_guitar_jazz','electric_guitar_clean',
+  'electric_guitar_muted','overdriven_guitar','distortion_guitar','guitar_harmonics',
+  'acoustic_bass','electric_bass_finger','electric_bass_pick','fretless_bass',
+  'slap_bass_1','slap_bass_2','synth_bass_1','synth_bass_2',
+  'violin','viola','cello','contrabass',
+  'tremolo_strings','pizzicato_strings','orchestral_harp','timpani',
+  'string_ensemble_1','string_ensemble_2','synth_strings_1','synth_strings_2',
+  'choir_aahs','voice_oohs','synth_choir','orchestra_hit',
+  'trumpet','trombone','tuba','muted_trumpet',
+  'french_horn','brass_section','synth_brass_1','synth_brass_2',
+  'soprano_sax','alto_sax','tenor_sax','baritone_sax',
+  'oboe','english_horn','bassoon','clarinet',
+  'piccolo','flute','recorder','pan_flute',
+  'blown_bottle','shakuhachi','whistle','ocarina',
+  'lead_1_square','lead_2_sawtooth','lead_3_calliope','lead_4_chiff',
+  'lead_5_charang','lead_6_voice','lead_7_fifths','lead_8_bass_lead',
+  'pad_1_new_age','pad_2_warm','pad_3_polysynth','pad_4_choir',
+  'pad_5_bowed','pad_6_metallic','pad_7_halo','pad_8_sweep',
+  'fx_1_rain','fx_2_soundtrack','fx_3_crystal','fx_4_atmosphere',
+  'fx_5_brightness','fx_6_goblins','fx_7_echoes','fx_8_scifi',
+  'sitar','banjo','shamisen','koto',
+  'kalimba','bag_pipe','fiddle','shanai',
+  'tinkle_bell','agogo','steel_drums','woodblock',
+  'taiko_drum','melodic_tom','synth_drum','reverse_cymbal',
+  'guitar_fret_noise','breath_noise','seashore','bird_tweet',
+  'telephone_helicopter','applause','gunshot'
+];
+
+// Drum note → SoundFont instrument mapping
+var DRUM_MAP = {
+  35: 'acoustic_grand_piano', 36: 'acoustic_grand_piano', // Kick
+  38: 'acoustic_grand_piano', 40: 'acoustic_grand_piano', // Snare
+  42: 'acoustic_grand_piano', 44: 'acoustic_grand_piano', 46: 'acoustic_grand_piano', // Hi-hat
+  49: 'acoustic_grand_piano', 57: 'acoustic_grand_piano', // Crash
+  51: 'acoustic_grand_piano', 53: 'acoustic_grand_piano', // Ride
+};
+
+function getPlayMode() {
+  var r = document.querySelector('input[name=playMode]:checked');
+  return r ? r.value : 'sf2';
+}
+
+function playMidi(midiUrl, name) {
+  try {
+    if (getPlayMode() === 'gm') {
+      playMidiGM(midiUrl, name);
+    } else {
+      playMidiSF2(midiUrl, name);
+    }
+  } catch(e) {
+    console.error('[playMidi] 错误:', e);
+    setStatus('播放错误: ' + e.message, true);
+  }
+}
+
+// ── SF2 渲染播放 ──
+function playMidiSF2(midiUrl, name) {
+  stopGM();
+  document.getElementById('nowPlaying').textContent = name;
+  setStatus('渲染中...', false);
+  audioPlayer.style.display = 'none';
+  gmProgress.style.display = 'none';
+  gmControls.style.display = 'none';
+
+  var overlay = document.getElementById('sf2Overlay');
+  var title = document.getElementById('sf2OverlayTitle');
+  var pct = document.getElementById('sf2Pct');
+  var bar = document.getElementById('sf2Bar');
+  title.textContent = '渲染: ' + name;
+  bar.style.width = '0%';
+  bar.classList.add('indeterminate');
+  pct.innerHTML = '准备中...';
+  overlay.classList.add('show');
+
+  var filename = decodeURIComponent(midiUrl.split('/').pop());
+  var renderId = 'render_' + filename;
+
+  var progressTimer = setInterval(function() {
+    var px = new XMLHttpRequest();
+    px.open('GET', '/api/midi/progress/' + encodeURIComponent(renderId));
+    px.setRequestHeader('Authorization', 'Bearer ' + TOKEN);
+    px.onload = function() {
+      if (px.status === 200) {
+        try {
+          var p = JSON.parse(px.responseText);
+          bar.style.width = p.pct + '%';
+          bar.classList.remove('indeterminate');
+          pct.innerHTML = p.phase + ' ' + p.pct + '% ' + (p.detail || '');
+          if (p.pct >= 100 && p.url) {
+            clearInterval(progressTimer);
+            overlay.classList.remove('show');
+            audioPlayer.src = p.url;
+            audioPlayer.style.display = 'block';
+            audioPlayer.play();
+            setStatus('播放中 (SF2)', false, true);
+          } else if (p.phase === 'error') {
+            clearInterval(progressTimer);
+            overlay.classList.remove('show');
+            setStatus('渲染失败: ' + (p.detail || ''), true);
+          }
+        } catch(e) {}
+      }
+    };
+    px.send();
+  }, 500);
+
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', API.midiRender(filename));
+  xhr.setRequestHeader('Authorization', 'Bearer ' + TOKEN);
+  xhr.onload = function() {
+    if (xhr.status !== 202) {
+      clearInterval(progressTimer);
+      overlay.classList.remove('show');
+      try {
+        var d = JSON.parse(xhr.responseText);
+        if (d.success && d.url) {
+          audioPlayer.src = d.url;
+          audioPlayer.style.display = 'block';
+          audioPlayer.play();
+          setStatus('播放中 (SF2)', false, true);
+        } else {
+          setStatus('失败: ' + (d.error || ''), true);
+        }
+      } catch(e) { setStatus('失败', true); }
+    }
+  };
+  xhr.onerror = function() {
+    clearInterval(progressTimer);
+    overlay.classList.remove('show');
+    setStatus('请求失败', true);
+  };
+  xhr.send();
+}
+
+// ── 系统合成（midi-player-js + soundfont-player）──
+
+function initAudioCtx() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+async function loadInstrument(program, channel) {
+  var key = channel === 9 ? 'drum' : 'inst_' + program;
+  if (instruments[key]) return instruments[key];
+
+  var ctx = initAudioCtx();
+  var instName;
+
+  if (channel === 9) {
+    instName = 'percussion';
+  } else {
+    instName = GM_INSTRUMENTS[program] || 'acoustic_grand_piano';
+  }
+
+  try {
+    var inst = await Soundfont.instrument(ctx, instName, {
+      soundfont: 'FluidR3_GM',
+      destination: audioCtx.destination
+    });
+    instruments[key] = inst;
+    return inst;
+  } catch(e) {
+    // Fallback to piano
+    if (!instruments['piano_fallback']) {
+      instruments['piano_fallback'] = await Soundfont.instrument(ctx, 'acoustic_grand_piano', {
+        soundfont: 'FluidR3_GM',
+        destination: audioCtx.destination
+      });
+    }
+    return instruments['piano_fallback'];
+  }
+}
+
+async function playMidiGM(midiUrl, name) {
+  stopGM();
+  audioPlayer.style.display = 'none';
+  document.getElementById('nowPlaying').textContent = name;
+  setStatus('加载 MIDI...', false);
+
+  initAudioCtx();
+  instruments = {};
+  programMap = {};
+  activeNodes = {};
+
+  var filename = decodeURIComponent(midiUrl.split('/').pop());
+  var midiDataUrl = '/api/midi/download/' + encodeURIComponent(filename);
+
+  // Load MIDI file via XHR (midi-player-js needs ArrayBuffer)
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', midiDataUrl);
+  xhr.setRequestHeader('Authorization', 'Bearer ' + TOKEN);
+  xhr.responseType = 'arraybuffer';
+  xhr.onload = async function() {
+    if (xhr.status !== 200) { setStatus('加载 MIDI 失败', true); return; }
+
+    setStatus('加载音色...', false);
+
+    // Pre-load piano instrument
+    await loadInstrument(0, 0);
+
+    // Create midi-player-js instance
+    midiPlayer = new Midi.Player(function(event) {
+      handleMidiEvent(event);
+    });
+
+    midiPlayer.loadArrayBuffer(xhr.response);
+
+    var duration = midiPlayer.getSongTime();
+    var totalTicks = midiPlayer.totalTicks;
+
+    gmProgress.style.display = 'block';
+    gmControls.style.display = 'flex';
+    setStatus('播放中 (系统合成)', false, true);
+
+    midiPlayer.play();
+
+    // Progress updater
+    var progressTimer = setInterval(function() {
+      if (!midiPlayer || !midiPlayer.isPlaying()) {
+        clearInterval(progressTimer);
+        if (midiPlayer && !midiPlayer.isPlaying()) {
+          gmProgressFill.style.width = '100%';
+          setStatus('播放完成', false, true);
+        }
+        return;
+      }
+      var pct = Math.min(100, Math.round(midiPlayer.currentTime / duration * 100));
+      gmProgressFill.style.width = pct + '%';
+    }, 200);
+
+    // Store cleanup
+    gmStop = function() {
+      clearInterval(progressTimer);
+      if (midiPlayer) { midiPlayer.stop(); midiPlayer = null; }
+      stopAllNotes();
+    };
+  };
+  xhr.onerror = function() { setStatus('请求失败', true); };
+  xhr.send();
+}
+
+function handleMidiEvent(event) {
+  if (!event || !event.channel) return;
+
+  var name = event.name;
+  var channel = event.channel - 1; // midi-player-js uses 1-based channels
+
+  if (name === 'Note on') {
+    var note = event.noteNumber;
+    var velocity = event.velocity;
+
+    if (velocity === 0) {
+      stopNote(channel, note);
+      return;
+    }
+
+    var program = programMap[channel] || 0;
+    var key = channel + ':' + note;
+
+    // Stop existing note if any
+    stopNote(channel, note);
+
+    // Play via soundfont-player
+    var instKey = channel === 9 ? 'drum' : 'inst_' + program;
+    var inst = instruments[instKey] || instruments['piano_fallback'];
+
+    if (inst) {
+      try {
+        var node = inst.play(note, audioCtx.currentTime, {
+          gain: velocity / 127,
+          duration: 2.0
+        });
+        if (node) {
+          activeNodes[key] = node;
+          // Auto-cleanup
+          setTimeout(function() { delete activeNodes[key]; }, 2500);
+        }
+      } catch(e) {}
+    }
+  } else if (name === 'Note off') {
+    stopNote(channel, event.noteNumber);
+  } else if (name === 'Program Change') {
+    programMap[channel] = event.value;
+    // Pre-load instrument in background
+    loadInstrument(event.value, channel).catch(function() {});
+  }
+}
+
+function stopNote(channel, note) {
+  var key = channel + ':' + note;
+  var node = activeNodes[key];
+  if (node) {
+    try {
+      if (typeof node.stop === 'function') node.stop();
+    } catch(e) {}
+    delete activeNodes[key];
+  }
+}
+
+function stopAllNotes() {
+  Object.keys(activeNodes).forEach(function(key) {
+    var node = activeNodes[key];
+    try {
+      if (node && typeof node.stop === 'function') node.stop();
+    } catch(e) {}
+  });
+  activeNodes = {};
+}
+
+function stopGM() {
+  if (gmStop) {
+    gmStop();
+    gmStop = null;
+  }
+  gmProgress.style.display = 'none';
+  gmControls.style.display = 'none';
+  programMap = {};
+}
+
+var gmStop = null;
+
+// Controls
+document.getElementById('btnPlay').addEventListener('click', function() {
+  if (midiPlayer) {
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    midiPlayer.play();
+    setStatus('播放中', false, true);
+  }
+});
+document.getElementById('btnPause').addEventListener('click', function() {
+  if (midiPlayer) {
+    midiPlayer.pause();
+    setStatus('已暂停', false);
+  }
+});
+document.getElementById('btnStop').addEventListener('click', function() {
+  stopGM();
+  setStatus('已停止', false);
+});
+
+// ── 通用 ──
+
+function uploadFile(file, url, type) {
+  var fd = new FormData(); fd.append('file', file);
+  var x = new XMLHttpRequest(); x.open('POST', url);
+  x.setRequestHeader('Authorization', 'Bearer ' + TOKEN);
+  x.onload = function() {
+    if (x.status === 200) {
+      if (type === 'midi') loadMidiList(); else loadSf2List();
+    } else setStatus('上传失败', true);
+  };
+  x.send(fd);
+}
+
+function getAuth() { return { 'Authorization': 'Bearer ' + TOKEN }; }
+
+async function loadMidiList() {
+  try {
+    var r = await fetch(API.midiList, { headers: getAuth() });
+    var j = await r.json(); var ul = document.getElementById('midiList'); ul.innerHTML = '';
+    (j.files || []).forEach(function(f) {
+      var li = document.createElement('li'); li.className = 'file-item';
+      li.innerHTML = '<span class="file-name" title="' + f.name + '">' + f.name + '</span><span class="file-size">' + fmtSize(f.size) + '</span><span class="file-actions"><button class="play-btn" data-url="' + encodeURI(f.url) + '" data-name="' + f.name + '">▶</button><button class="del-btn" data-name="' + f.name + '" data-type="midi">🗑</button></span>';
+      ul.appendChild(li);
+    });
+    ul.querySelectorAll('.play-btn').forEach(function(b) { b.onclick = function() { playMidi(this.dataset.url, this.dataset.name); }; });
+    ul.querySelectorAll('.del-btn').forEach(function(b) { b.onclick = function() { deleteFile(this.dataset.name, this.dataset.type); }; });
+  } catch(e) {}
+}
+
+async function loadSf2List() {
+  try {
+    var r = await fetch(API.sf2List, { headers: getAuth() });
+    var j = await r.json(); var ul = document.getElementById('sf2List'), sel = document.getElementById('sf2Select');
+    ul.innerHTML = ''; sel.innerHTML = '';
+    var files = j.files || [];
+    if (!files.length) sel.innerHTML = '<option value="">请先上传 SF2</option>';
+    files.forEach(function(f, i) {
+      var li = document.createElement('li'); li.className = 'file-item';
+      li.innerHTML = '<span class="file-name" title="' + f.name + '">' + f.name + '</span><span class="file-size">' + fmtSize(f.size) + '</span><span class="file-actions"><button class="del-btn" data-name="' + f.name + '" data-type="sf2">🗑</button></span>';
+      ul.appendChild(li);
+      var opt = document.createElement('option'); opt.value = f.url; opt.textContent = f.name; if (i === 0) opt.selected = true; sel.appendChild(opt);
+    });
+    ul.querySelectorAll('.del-btn').forEach(function(b) { b.onclick = function() { deleteFile(this.dataset.name, this.dataset.type); }; });
+  } catch(e) {}
+}
+
+async function deleteFile(name, type) {
+  if (!confirm('确认删除 ' + name + '？')) return;
+  await fetch(type === 'midi' ? API.midiDelete(name) : API.sf2Delete(name), { method: 'DELETE', headers: getAuth() });
+  if (type === 'midi') loadMidiList(); else loadSf2List();
+}
+
+function fmtSize(b) { if (b < 1024) return b + ' B'; if (b < 1048576) return (b / 1024).toFixed(1) + ' KB'; return (b / 1048576).toFixed(1) + ' MB'; }
+function setStatus(msg, isErr, isOk) { var el = document.getElementById('status'); el.textContent = msg; el.className = 'status' + (isErr ? ' err' : '') + (isOk ? ' ok' : ''); }
+
+document.querySelector('input[name=playMode][value=sf2]').addEventListener('change', function() { stopGM(); });
+document.querySelector('input[name=playMode][value=gm]').addEventListener('change', function() { audioPlayer.pause(); audioPlayer.style.display = 'none'; });
+
+document.getElementById('sf2Input').addEventListener('change', function(e) { if (e.target.files[0]) uploadFile(e.target.files[0], API.sf2Upload, 'sf2'); });
+document.getElementById('midiInput').addEventListener('change', function(e) { if (e.target.files[0]) uploadFile(e.target.files[0], API.midiUpload, 'midi'); });
+document.getElementById('sf2Upload').addEventListener('click', function(e) { if (e.target.tagName !== 'BUTTON') document.getElementById('sf2Input').click(); });
+document.getElementById('midiUpload').addEventListener('click', function(e) { if (e.target.tagName !== 'BUTTON') document.getElementById('midiInput').click(); });
+
+loadMidiList();
+loadSf2List();
+</script>
+</body>
+</html>

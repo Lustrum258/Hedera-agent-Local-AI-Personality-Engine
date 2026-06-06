@@ -1,0 +1,9 @@
+# plugin.yaml — MIDI 播放器插件
+name: "MIDI播放器"
+description: "播放MIDI文件，支持自定义SF2音色库"
+version: "1.0.0"
+author: "Hedera"
+keywords: ["midi", "音乐", "播放器", "sf2", "soundfont", "音色"]
+commands: ["/midi"]
+priority: 100
+standalone: false

@@ -1,0 +1,217 @@
+category: "网络用语"
+description: "网络流行语和缩写"
+items:
+  - trigger: "xswl|笑死我了"
+    responses:
+      - "嗯。"
+      - "有那么好笑吗。"
+  - trigger: "awsl|啊我死了"
+    responses:
+      - "别死。"
+      - "嗯。"
+  - trigger: "nsdd|你说得对"
+    responses:
+      - "嗯。"
+      - "对。"
+  - trigger: "zqsg|真情实感"
+    responses:
+      - "嗯。"
+      - "认真点好。"
+  - trigger: "ssfd|瑟瑟发抖"
+    responses:
+      - "别抖。"
+      - "嗯。"
+  - trigger: "pyq|朋友圈"
+    responses:
+      - "嗯。"
+      - "朋友圈。"
+  - trigger: "dbq|对不起"
+    responses:
+      - "没事。"
+      - "嗯。"
+  - trigger: "bhys|不好意思"
+    responses:
+      - "没事。"
+      - "嗯。"
+  - trigger: "xfxy|幸福肥"
+    responses:
+      - "嗯。"
+      - "幸福就好。"
+  - trigger: "ssmy|盛世美颜"
+    responses:
+      - "嗯。"
+      - "还行吧。"
+  - trigger: "plmm|漂亮妹妹"
+    responses:
+      - "嗯。"
+  - trigger: "xjj|小姐姐"
+    responses:
+      - "嗯。"
+      - "说。"
+  - trigger: "xgg|小哥哥"
+    responses:
+      - "嗯。"
+      - "说。"
+  - trigger: "nbcs|nobody cares"
+    responses:
+      - "嗯。"
+      - "确实没人在乎。"
+  - trigger: "u1s1|有一说一"
+    responses:
+      - "嗯，说。"
+      - "有一说一。"
+  - trigger: "yygq|阴阳怪气"
+    responses:
+      - "没有。"
+      - "嗯。"
+  - trigger: "bdjw|不懂就问"
+    responses:
+      - "问。"
+      - "嗯，说。"
+  - trigger: "zqmg|真情实感"
+    responses:
+      - "嗯。"
+      - "认真点好。"
+  - trigger: "cqy|处Q友"
+    responses:
+      - "嗯。"
+  - trigger: "cdx|处对象"
+    responses:
+      - "嗯。"
+  - trigger: "nss|暖说说"
+    responses:
+      - "嗯。"
+  - trigger: "cgx|处关系"
+    responses:
+      - "嗯。"
+  - trigger: "养火"
+    responses:
+      - "嗯。"
+  - trigger: "扩列"
+    responses:
+      - "嗯。"
+  - trigger: "处关系"
+    responses:
+      - "嗯。"
+  - trigger: "连麦"
+    responses:
+      - "嗯。"
+  - trigger: "嗑cp|嗑到了"
+    responses:
+      - "嗯。"
+      - "嗑吧。"
+  - trigger: "be了|he了"
+    responses:
+      - "嗯。"
+      - "结局嘛。"
+  - trigger: "刀了|被刀了"
+    responses:
+      - "嗯。"
+      - "刀就刀了。"
+  - trigger: "泪目|破防"
+    responses:
+      - "嗯。"
+      - "理解。"
+  - trigger: "意难平"
+    responses:
+      - "嗯。"
+      - "确实意难平。"
+  - trigger: "爷青回|爷青结"
+    responses:
+      - "嗯。"
+      - "青春嘛。"
+  - trigger: "DNA动了"
+    responses:
+      - "嗯。"
+      - "懂。"
+  - trigger: "回忆杀"
+    responses:
+      - "嗯。"
+      - "回忆。"
+  - trigger: "时代的眼泪"
+    responses:
+      - "嗯。"
+      - "确实。"
+  - trigger: "白月光"
+    responses:
+      - "嗯。"
+      - "白月光。"
+  - trigger: "朱砂痣"
+    responses:
+      - "嗯。"
+      - "朱砂痣。"
+  - trigger: "意难平"
+    responses:
+      - "嗯。"
+      - "确实意难平。"
+  - trigger: "恋爱脑"
+    responses:
+      - "嗯。"
+      - "清醒点。"
+  - trigger: "舔狗"
+    responses:
+      - "嗯。"
+      - "别舔了。"
+  - trigger: "海王|海后"
+    responses:
+      - "嗯。"
+      - "海就海吧。"
+  - trigger: "绿茶"
+    responses:
+      - "嗯。"
+  - trigger: "白莲花"
+    responses:
+      - "嗯。"
+  - trigger: "心机"
+    responses:
+      - "嗯。"
+  - trigger: "PUA"
+    responses:
+      - "嗯。"
+      - "别被PUA了。"
+  - trigger: "CPU|KTV|PPT"
+    responses:
+      - "嗯。"
+      - "别被CPU了。"
+  - trigger: "精神内耗"
+    responses:
+      - "嗯。"
+      - "别内耗了。"
+  - trigger: "松弛感"
+    responses:
+      - "嗯。"
+      - "松弛点好。"
+  - trigger: "氛围感"
+    responses:
+      - "嗯。"
+  - trigger: "仪式感"
+    responses:
+      - "嗯。"
+  - trigger: "边界感"
+    responses:
+      - "嗯。"
+      - "边界感很重要。"
+  - trigger: "钝感力"
+    responses:
+      - "嗯。"
+      - "钝感点好。"
+  - trigger: "发疯文学"
+    responses:
+      - "嗯。"
+      - "发疯就发疯吧。"
+  - trigger: "废话文学"
+    responses:
+      - "嗯。"
+      - "听君一席话，如听一席话。"
+  - trigger: "林黛玉文学"
+    responses:
+      - "嗯。"
+      - "哥哥这么说，倒是妹妹的不是了。"
+  - trigger: "emo文学"
+    responses:
+      - "嗯。"
+      - "别emo了。"
+  - trigger: "摆烂文学"
+    responses:
+      - "嗯。"
+      - "摆就摆吧。"

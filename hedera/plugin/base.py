@@ -59,6 +59,28 @@ class PluginBase:
         """
         return []
 
+    def get_routes(self) -> list[tuple]:
+        """
+        返回插件注册的 HTTP 路由列表。
+        格式：[(method, path_pattern, handler), ...]
+          method: "GET" / "POST" / "DELETE" 等
+          path_pattern: 如 "/api/midi/upload" 或 "/api/midi/{name}"
+            {name} 会匹配到 context["params"]["name"]
+          handler: async_or_sync (context) -> response
+            context = {"params": dict, "query": dict, "headers": dict,
+                        "body": bytes, "file_data": bytes|None, "file_name": str|None}
+            response = (data, code)
+              data 为 dict 则发 JSON，为 bytes/str 则发原始内容
+        """
+        return []
+
+    def get_static_dir(self) -> str | None:
+        """
+        返回插件的静态文件目录路径。
+        目录中的文件会通过 /plugins/<name>/static/<filename> 提供访问。
+        """
+        return None
+
     def get_system_prompt_modifier(self) -> str | None:
         """返回追加到 system prompt 的文本"""
         return None
@@ -116,3 +138,45 @@ def load_plugin_from_dir(plugin_dir: str) -> PluginBase | None:
             setattr(instance, key, meta[key])
 
     return instance
+
+
+class SkillPlugin(PluginBase):
+    """
+    轻量级技能插件 — 由 YAML 定义，无需 main.py。
+    通过 prompt 注入实现技能功能。
+    """
+
+    def __init__(self, skill_data: dict):
+        self.name = skill_data.get("name", "")
+        self.description = skill_data.get("description", "")
+        self.keywords = skill_data.get("keywords", [])
+        self.commands = skill_data.get("commands", [])
+        self.priority = 50  # 技能优先级高于普通插件
+        self.standalone = False
+        self._prompt = skill_data.get("prompt", "")
+
+    def process(self, message: str, context: dict = None) -> str | None:
+        """
+        技能不直接处理消息，而是通过 system_prompt_modifier 注入 prompt。
+        返回 None 让主路由继续处理（LLM 会看到注入的 prompt）。
+        """
+        return None
+
+    def get_system_prompt_modifier(self) -> str | None:
+        """将技能 prompt 注入系统提示"""
+        if self._prompt:
+            return f"\n【当前技能: {self.name}】\n{self._prompt}"
+        return None
+
+
+def load_skill_from_yaml(yaml_path: str) -> SkillPlugin | None:
+    """从 YAML 文件加载一个技能"""
+    try:
+        with open(yaml_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        if not data.get("name"):
+            return None
+        return SkillPlugin(data)
+    except Exception as e:
+        print(f"[Skill] 加载失败 {yaml_path}: {e}")
+        return None

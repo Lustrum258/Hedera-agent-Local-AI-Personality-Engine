@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "hedera-agent"
@@ -27,9 +27,37 @@ dependencies = [
     "pyyaml>=6.0",
 ]
 
+[project.optional-dependencies]
+# 系统监控
+monitor = ["psutil>=5.9"]
+# Excel 插件
+excel = ["openpyxl>=3.1"]
+# PPT 插件
+ppt = ["python-pptx>=0.6"]
+# MIDI 插件
+midi = ["mido>=1.3", "pyfluidsynth>=1.3"]
+# AIGC 检测器训练
+aigc-train = ["numpy>=1.24", "scikit-learn>=1.3", "xgboost>=2.0"]
+# QQ Bot
+qqbot = ["nonebot2>=2.0", "nonebot-adapter-onebot>=0.1", "httpx>=0.24"]
+# Token 计数
+tiktoken = ["tiktoken>=0.5"]
+# 全部可选依赖
+all = [
+    "psutil>=5.9",
+    "openpyxl>=3.1",
+    "python-pptx>=0.6",
+    "mido>=1.3",
+    "pyfluidsynth>=1.3",
+    "numpy>=1.24",
+    "scikit-learn>=1.3",
+    "xgboost>=2.0",
+    "tiktoken>=0.5",
+]
+
 [project.urls]
-Homepage = "https://github.com/lustrum/hedera"
-"Bug Tracker" = "https://github.com/lustrum/hedera/issues"
+Homepage = "https://github.com/Lustrum258/Hedera-agent-Local-AI-Personality-Engine"
+"Bug Tracker" = "https://github.com/Lustrum258/Hedera-agent-Local-AI-Personality-Engine/issues"
 
 [tool.setuptools.packages.find]
 include = ["hedera*"]

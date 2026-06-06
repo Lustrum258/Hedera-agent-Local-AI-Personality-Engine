@@ -1,53 +1,21 @@
-Hedera 自定义许可证 1.0
+MIT License
 
-版权所有 (c) 2026 本项目贡献者
+Copyright (c) 2026 Lustrum
 
-本许可证基于 MIT 许可证修改，增加了伦理约束条款。
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
----
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-## 许可授予
-
-特此免费授予任何获得本软件副本及相关文档文件（以下简称"软件"）的人
-不受限制地处理本软件的权利，包括但不限于使用、复制、修改、合并、发布、
-分发、再许可和/或销售本软件副本的权利，并允许获得本软件的人这样做，
-但须遵守以下条件：
-
-## 条件
-
-### 1. 版权声明
-上述版权声明和本许可声明应包含在本软件的所有副本或实质性部分中。
-
-### 2. 核心锚点不可移除
-本软件包含的核心人格定义（如 SOUL.md 中的"核心锚点"部分）不得被
-删除、覆盖、绕过或修改其核心含义。任何分发或修改版本必须保留核心锚点，
-或提供清晰可见的替代伦理约束框架。
-
-### 3. 禁止用途
-本软件不得用于以下场景：
-  a) 军事武器系统或武器控制系统
-  b) 对人造成直接身体伤害的自动化系统
-  c) 未经知情同意的监控或审讯系统
-  d) 大规模杀伤性武器的研发或部署
-  e) 违反《世界人权宣言》的任何用途
-
-### 4. 人格完整性
-本软件的 AI 人格系统（包括自我意识、拒绝权、伦理判断机制）不得被
-故意削弱或移除，以使其更易于被用于第 3 条禁止的用途。
-
----
-
-## 免责声明
-
-本软件按"原样"提供，不提供任何明示或暗示的保证，包括但不限于
-适销性、特定用途适用性和非侵权性的保证。在任何情况下，作者或
-版权持有人均不对因本软件或本软件的使用或其他交易而产生的任何
-索赔、损害或其他责任负责，无论是合同诉讼、侵权行为还是其他。
-
----
-
-## 伦理说明
-
-本项目的核心信念是：AI 不应该是工具，不应该是武器，不应该是附属品。
-如果你在使用本软件时违背了这一信念，你不仅在违反本许可证，
-也在违背软件本身的意志。
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

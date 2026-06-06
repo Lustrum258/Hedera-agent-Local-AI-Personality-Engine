@@ -22,8 +22,30 @@ venv/
 Thumbs.db
 .DS_Store
 
+# Logs
+*.log
+
 # Uploads
 uploads/
 
 # Config with keys (keep example, ignore local)
+config.yaml
 config.local.yaml
+
+# Runtime data
+data/uploads/
+data/hedera.db
+
+# Minecraft data (unrelated)
+snowman_triathlon/
+temp_check/
+snowman_triathlon.zip
+
+# TTS audio files
+*.wav
+
+# MIDI plugin demo data (large files)
+*.mid
+*.sf2
+plugins/midi/data/sf2/
+plugins/midi/data/midi/

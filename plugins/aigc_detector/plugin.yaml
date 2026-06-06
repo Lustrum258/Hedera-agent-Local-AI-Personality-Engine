@@ -1,0 +1,9 @@
+# plugin.yaml — AIGC 检测插件 v3.0
+name: "AIGC检测"
+description: "检测中文学术论文的AIGC痕迹。基于12维文体统计特征（字频分布熵、MATTR、句长方差、register volatility、style transition score等），无需GPU，轻量快速。支持句子级和段落级检测，支持混写文本的风格断裂检测。"
+version: "3.0.0"
+author: "冬青 / 茯苓"
+keywords: ["AIGC", "检测", "查AI", "AI生成", "论文检测", "学术不端", "查重", "ai检测", "aigc检测", "人工智能检测", "风格断裂", "混写检测"]
+commands: ["/detect", "/aigc"]
+priority: 80
+standalone: false

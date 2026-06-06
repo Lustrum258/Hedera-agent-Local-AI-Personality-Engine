@@ -16,6 +16,7 @@ from hedera.core.memory import build_system_prompt
 from hedera.core.memory_store import MemoryStore
 from hedera.core.experience import distill_experience_once
 from hedera.core.tools import call_tool, get_tool_descriptions, ALL_TOOL_NAMES
+from hedera.core.context_manager import build_context_messages, estimate_max_context
 from hedera.noise.injector import NoiseInjector
 from hedera.noise.slider import SliderEngine
 from hedera.plugin.manager import PluginManager
@@ -24,10 +25,23 @@ from hedera.training.signal import SignalManager
 MAX_TOOL_LOOP = 20
 
 _ACTION_KEYWORDS = [
-    "查", "看", "找", "读", "写", "改", "删", "复制", "移动", "执行", "运行", "搜",
-    "桌面", "文件", "目录", "文件夹", "进程", "任务", "程序", "打开",
-    "list", "dir", "read", "write", "search", "create", "make", "run",
-    "查看", "浏览", "列出", "读取", "写入", "搜索", "获取", "命令",
+    # 文件/目录操作（需要较长短语避免误触发）
+    "读取文件", "写入文件", "删除文件", "创建文件", "复制文件",
+    "查看文件", "查看目录", "列出文件", "列出目录", "搜索文件",
+    "file", "directory", "folder",
+    # 进程/系统
+    "执行命令", "运行命令", "运行脚本", "运行程序",
+    "进程列表", "任务管理", "系统信息",
+    "exec_shell", "run_python",
+    # 网络
+    "搜索网页", "抓取网页", "下载文件", "网页内容",
+    "web_search", "web_fetch",
+    # 编码相关（只有明确涉及代码才触发）
+    "写代码", "改代码", "看代码", "读代码", "写程序",
+    "代码审查", "code review", "调试代码",
+    "git status", "git commit", "git push", "git diff",
+    "pip install", "npm install",
+    "grep_files", "find_definition", "edit_file",
 ]
 
 
@@ -47,7 +61,11 @@ def _get_strength(task_type: str, config: dict) -> float:
     return noise_cfg.get(mapping.get(task_type, "complex_strength"), 0.0)
 
 
-def _call_api(messages: list, config: dict, temperature_override: float = None, tools: list = None, max_retries: int = 1) -> dict:
+_last_api_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+_usage_lock = threading.Lock()
+
+
+def _call_api(messages: list, config: dict, temperature_override: float = None, tools: list = None, max_retries: int = 2, max_tokens_override: int = 0) -> dict:
     """
     调用 LLM API。
     - 工具列表 (`tools`) 一次性构建在 body 中，不存在遗漏
@@ -62,29 +80,54 @@ def _call_api(messages: list, config: dict, temperature_override: float = None, 
     endpoint = model_cfg.get("endpoint", "https://api.deepseek.com/chat/completions")
     model_name = model_cfg.get("name", "deepseek-chat")
 
+    # 简单对话限制 max_tokens，减少推理模型的推理开销
+    default_max = model_cfg.get("max_tokens", 4096)
+    if max_tokens_override:
+        effective_max = max_tokens_override
+    elif len(messages) <= 4:  # system + 少量消息 = 简单对话
+        effective_max = min(default_max, 2048)
+    else:
+        effective_max = default_max
+
     # 一次性构建 body（tools 始终包含，空 list 传给 API 也没问题）
     body_payload = {
         "model": model_name,
         "messages": messages,
         "temperature": temp,
-        "max_tokens": model_cfg.get("max_tokens", 4096),
+        "max_tokens": effective_max,
     }
     if tools:
         body_payload["tools"] = tools
     last_exception = None
-    for attempt in range(1, min(max_retries, 2) + 1):  # 最多重试 1 次（共 2 次尝试）
+    for attempt in range(1, max_retries + 1):  # 重试 max_retries 次
         try:
             import requests as _requests
             resp = _requests.post(
                 endpoint,
                 json=body_payload,
                 headers={"Authorization": f"Bearer {api_key}"},
-                timeout=120,
+                timeout=300,
             )
             data = resp.json()
             METRICS.record_api_call(success=True, latency=_timer.elapsed())
+            # 捕获 API 返回的 token 用量
+            if "usage" in data and isinstance(data["usage"], dict):
+                with _usage_lock:
+                    _last_api_usage.update(data["usage"])
+            # 提取 API 错误信息
+            if "error" in data:
+                err = data["error"]
+                if isinstance(err, dict):
+                    err_msg = err.get("message", "") or err.get("msg", "") or str(err)
+                else:
+                    err_msg = str(err)
+                raise ValueError(f"API 错误 ({resp.status_code}): {err_msg}")
             if "choices" in data and len(data["choices"]) > 0:
-                return data["choices"][0]["message"]
+                msg = data["choices"][0]["message"]
+                # 防御：某些 API 返回 message 为字符串而非 dict
+                if isinstance(msg, str):
+                    msg = {"content": msg, "tool_calls": None}
+                return msg
             else:
                 raise ValueError(f"API 返回格式异常: {list(data.keys())}")
         except Exception as e:
@@ -131,7 +174,7 @@ def _build_tool_prompt() -> str:
     lines.append(f"- Python: {platform.python_version()}")
     lines.append(f"- 当前目录: {cwd}")
 
-    # 工具清单（自动从注册表读取）
+    # 工具清单（自动从注册表读取，含参数描述）
     lines.append(f"\n### 可用工具（共{len(_TOOLS)}个）")
     for t in _TOOLS.values():
         name = t["name"]
@@ -146,10 +189,16 @@ def _build_tool_prompt() -> str:
                 required_mark = " (必填)" if pname in required else ""
                 default_val = pinfo.get("default", "")
                 default_str = f" 默认={default_val}" if default_val != "" else ""
-                parts.append(f"{pname}{required_mark}{default_str}")
-            param_str = " → ".join(parts)
+                # 取参数描述的第一句（截断到50字）
+                pdesc = pinfo.get("description", "")
+                if pdesc:
+                    pdesc = pdesc.split(".")[0].split("。")[0][:50]
+                    parts.append(f"{pname}{required_mark}{default_str}: {pdesc}")
+                else:
+                    parts.append(f"{pname}{required_mark}{default_str}")
+            param_str = "\n  - ".join(parts)
         if param_str:
-            lines.append(f"- `{name}`: {desc}  参数: {param_str}")
+            lines.append(f"- `{name}`: {desc}\n  - {param_str}")
         else:
             lines.append(f"- `{name}`: {desc}")
 
@@ -209,28 +258,29 @@ def clear_tool_progress(req_id: str):
 def _reflect_loop(config: dict, db_dir: str):
     if _shutdown_event.wait(timeout=60):  # 初始等待60s，可被 shutdown 提前中断
         return
-    store = MemoryStore(db_dir, session_id="_reflection")
+    reflection_store = MemoryStore(db_dir, session_id="_reflection")
     counter = 0
-    # 训练协议脉冲信号（自生成模式，无需外部程序）
-    signal_mgr = SignalManager(db_dir) if config.get("training", {}).get("enabled", False) else None
+    _SYSTEM_SESSIONS = {"_reflection", "_experience", "_api", "_admin", "_cross_session_prompt", "_default"}
 
     while not _shutdown_event.is_set():
         if _shutdown_event.wait(timeout=5 * 60):
             break
         try:
-            history = store.get_recent_history(limit=100)
+            # 从最近的用户会话读取历史（而非 _reflection session）
+            all_sessions = reflection_store.list_sessions()
+            user_sessions = [s for s in all_sessions if s.get("session_id", "") not in _SYSTEM_SESSIONS]
+            if not user_sessions:
+                continue
+            # 取最近活跃的会话
+            recent_sid = user_sessions[0].get("session_id", "")
+            if not recent_sid:
+                continue
+            user_store = MemoryStore(db_dir, session_id=recent_sid)
+            history = user_store.get_recent_history(limit=100)
             user_count = sum(1 for m in history if m["role"] == "user")
             if user_count - counter >= 3:
                 counter = user_count
-                _do_reflection(history, config, store)
-
-            # 训练协议: 噪声脉冲自生成
-            # 不依赖外部信号文件，SignalManager 内部管理冷却+关键词抽取
-            if signal_mgr:
-                proactive_text = signal_mgr.check_and_trigger(history)
-                if proactive_text:
-                    # 写入最近活跃的会话
-                    _deliver_proactive_message(store, db_dir, proactive_text)
+                _do_reflection(history, config, reflection_store)
         except Exception:
             pass
 
@@ -394,6 +444,8 @@ def _do_reflection(history: list, config: dict, store: MemoryStore):
     # 只保留最近 50 条
     if len(_reflection_details) > 50:
         _reflection_details[:] = _reflection_details[-50:]
+    if len(_reflection_log) > 50:
+        _reflection_log[:] = _reflection_log[-50:]
     store.save_message("system", f"[自省] {summary}", "auto_reflect")
     # 触发经验蒸馏线程（如果还没启动）
     _ensure_experience_thread(config, db_dir)
@@ -412,17 +464,19 @@ _plugin_manager: PluginManager | None = None
 # 会话状态管理（多 session 支持）
 _session_stores: dict[str, 'MemoryStore'] = {}  # session_id → MemoryStore
 _session_db_dir = None
+_thread_lock = threading.Lock()
 
 
 def _ensure_experience_thread(config: dict, db_dir: str):
     """确保蒸馏线程已启动"""
     global _experience_thread
-    if _experience_thread is not None and _experience_thread.is_alive():
-        return
-    _experience_thread = threading.Thread(
-        target=_experience_loop, args=(config, db_dir), daemon=True
-    )
-    _experience_thread.start()
+    with _thread_lock:
+        if _experience_thread is not None and _experience_thread.is_alive():
+            return
+        _experience_thread = threading.Thread(
+            target=_experience_loop, args=(config, db_dir), daemon=True
+        )
+        _experience_thread.start()
 
 
 def _experience_loop(config: dict, db_dir: str):
@@ -587,6 +641,12 @@ def delete_session(session_id: str) -> dict:
     return {"status": "deleted", "session_id": session_id}
 
 
+def clear_all_sessions_cache():
+    """清除所有会话的内存缓存（配合 clear_all_sessions 使用）"""
+    global _session_stores
+    _session_stores.clear()
+
+
 def process_message(message: str, config: dict, session_id: str = None, on_tool_call: callable = None) -> tuple:
     """
     处理消息，返回 (response_content, session_id, files)。
@@ -629,6 +689,19 @@ def process_message(message: str, config: dict, session_id: str = None, on_tool_
     except Exception:
         pass
 
+    try:
+        return _process_message_inner(message, config, store, actual_session_id, saved_soul, saved_name, on_tool_call, noise, slider, _pending_files)
+    finally:
+        if saved_soul is not None:
+            config["identity"]["soul"] = saved_soul
+        if saved_name is not None:
+            config["identity"]["name"] = saved_name
+
+
+def _process_message_inner(message, config, store, actual_session_id, saved_soul, saved_name, on_tool_call, noise, slider, _pending_files):
+    """process_message 的内部实现，由 process_message 通过 try/finally 调用以保证 config 恢复。"""
+    global _last_system_prompt, _reflection_thread, _plugin_manager
+
     # 初始化插件
     if _plugin_manager is None:
         _init_plugins(config)
@@ -653,16 +726,22 @@ def process_message(message: str, config: dict, session_id: str = None, on_tool_
     _session_db_dir = db_dir
 
     # 启动自省线程
-    if _reflection_thread is None:
-        _reflection_thread = threading.Thread(
-            target=_reflect_loop, args=(config, db_dir), daemon=True
-        )
-        _reflection_thread.start()
+    with _thread_lock:
+        if _reflection_thread is None:
+            _reflection_thread = threading.Thread(
+                target=_reflect_loop, args=(config, db_dir), daemon=True
+            )
+            _reflection_thread.start()
 
     task_type = _classify_task(message)
     strength = _get_strength(task_type, config)
 
-    history = store.get_recent_history(limit=100)
+    # ── 立即保存用户消息（防止后台处理期间页面刷新丢失） ──
+    store.save_message("user", message, task_type)
+
+    # 加载历史（足够多，由 context_manager 按 token 智能截断）
+    hist_limit = 50 if task_type == "simple" else 500
+    history = store.get_recent_history(limit=hist_limit)
 
     # 系统提示
     system_base = build_system_prompt(config)
@@ -675,19 +754,51 @@ def process_message(message: str, config: dict, session_id: str = None, on_tool_
         system_text += f"\n{slider_mod}"
     if plugin_mod:
         system_text += f"\n{plugin_mod}"
-    system_text += _build_tool_prompt()
-
-    # 检测工具需求
+    # 只在需要工具时才注入工具提示（减少简单对话的上下文开销）
     needs_tool = any(kw in message for kw in _ACTION_KEYWORDS)
+    if needs_tool:
+        system_text += _build_tool_prompt()
+
+    # 编码任务自动注入项目上下文（带 30 秒缓存，只匹配明确的编码关键词）
+    _CODE_KEYWORDS = {"写代码", "改代码", "看代码", "读代码", "写程序", "调试代码",
+                      "code review", "代码审查", "代码重构",
+                      "git status", "git commit", "git push", "git diff", "git log",
+                      "pip install", "npm install", "yarn add",
+                      "grep_files", "find_definition", "edit_file",
+                      "run_python", "exec_shell",
+                      "bugfix", "hotfix", "refactor", "debug"}
+    if any(kw in message for kw in _CODE_KEYWORDS):
+        try:
+            now_ts = time.time()
+            # 30 秒缓存
+            if not hasattr(_build_tool_prompt, '_git_ctx_cache') or \
+               now_ts - getattr(_build_tool_prompt, '_git_ctx_ts', 0) > 30:
+                from hedera.core.tools import call_tool as _ct
+                ctx = _ct("git_status", {"path": "."})
+                _build_tool_prompt._git_ctx_cache = ctx
+                _build_tool_prompt._git_ctx_ts = now_ts
+            else:
+                ctx = _build_tool_prompt._git_ctx_cache
+            if ctx.get("success"):
+                ctx_parts = []
+                if ctx.get("branch"):
+                    ctx_parts.append(f"分支: {ctx['branch']}")
+                if ctx.get("status"):
+                    ctx_parts.append(f"变更:\n{ctx['status'][:500]}")
+                if ctx.get("recent_commits"):
+                    ctx_parts.append(f"最近提交:\n{ctx['recent_commits'][:500]}")
+                if ctx.get("file_tree"):
+                    ctx_parts.append(f"项目结构:\n{ctx['file_tree'][:1500]}")
+                if ctx_parts:
+                    system_text += f"\n\n【当前项目上下文 - 自动注入】\n" + "\n".join(ctx_parts)
+        except Exception:
+            pass  # 静默失败，不影响正常流程
+
     user_message = message
 
-    # 构建消息列表
-    msgs = [{"role": "system", "content": system_text}]
-    for h in history:
-        msgs.append({"role": h["role"], "content": h["content"]})
-
-    # 噪声处理
-    if task_type != "simple" and config.get("noise", {}).get("enabled", True):
+    # 噪声处理（需要工具时跳过，否则会导致回复错乱）
+    extra_messages = []
+    if not needs_tool and task_type != "simple" and config.get("noise", {}).get("enabled", True):
         if strength < 0.1:
             noise_type = "gaussian"
         elif strength < 0.2:
@@ -695,7 +806,8 @@ def process_message(message: str, config: dict, session_id: str = None, on_tool_
         else:
             noise_type = "impulse"
         noised_msg, jumps = noise.inject(user_message, strength, noise_type=noise_type)
-        msgs.append({"role": "user", "content": noised_msg})
+        if noised_msg != user_message:
+            extra_messages.append({"role": "user", "content": noised_msg})
         if jumps:
             store.save_noise_jumps(jumps)
             for j in jumps:
@@ -705,14 +817,33 @@ def process_message(message: str, config: dict, session_id: str = None, on_tool_
                     slider.adjust("thinking", 0.1)
                     slider.adjust("drive", -0.15)
             store.save_slider_state(slider.state.to_dict())
-    else:
-        msgs.append({"role": "user", "content": user_message})
 
     if needs_tool:
-        msgs.append({
+        extra_messages.append({
             "role": "user",
             "content": "（先调合适的工具获取信息，再回答。工具出错就换方式。）"
         })
+
+    # 防止 LLM 回显工具原始输出
+    extra_messages.append({
+        "role": "system",
+        "content": "重要规则：工具返回的内容是参考资料，不是你的回答。严禁原样输出工具返回的文件内容、代码全文、命令输出。用自己的话总结，只引用关键片段（每段不超过10行）。需要展示代码时只写用户需要修改的部分。"
+    })
+
+    # 使用 context_manager 智能截断上下文
+    model_name = config.get("model", {}).get("name", "")
+    max_ctx = config.get("model", {}).get("context_window", 0) or estimate_max_context(model_name)
+    tools_text = _build_tool_prompt() if needs_tool else ""
+
+    msgs, _ctx_stats = build_context_messages(
+        system_text=system_text,
+        history=history,
+        user_message=user_message,
+        extra_messages=extra_messages,
+        max_context_tokens=max_ctx,
+        reserve_for_response=config.get("model", {}).get("max_tokens", 4096),
+        tools_text=tools_text,
+    )
 
     # 工具调用循环（合并核心工具 + 插件工具）
     core_tools = get_tool_descriptions()
@@ -794,8 +925,11 @@ def process_message(message: str, config: dict, session_id: str = None, on_tool_
                     pass
 
             tool_response = json.dumps(tool_result, ensure_ascii=False, default=str)
-            if len(tool_response) > 8000:
-                tool_response = tool_response[:7500] + "\n...（结果过长已截断）"
+            # 编码相关工具保留更多输出（1M 上下文下可以给更多空间）
+            _code_tools = {"exec_shell", "run_python", "read_file", "grep_files"}
+            _max_resp = 15000 if func_name in _code_tools else 8000
+            if len(tool_response) > _max_resp:
+                tool_response = tool_response[:_max_resp - 500] + "\n...（结果过长已截断）"
 
             msgs.append({
                 "role": "tool",
@@ -850,8 +984,25 @@ def process_message(message: str, config: dict, session_id: str = None, on_tool_
         else:
             final_content = "[Hedera] 处理完成"
 
-    # 后处理自检
-    if task_type in ("complex", "creative") and strength > 0.1:
+    # 如果本轮有工具调用且生成了文件，检查回复是否混入代码
+    if _pending_files and tool_loop_count > 0 and final_content:
+        has_code = (len(final_content) > 200 and
+                    any(k in final_content for k in ["def ", "import ", "class ", "function ",
+                                                     "powershell", "cmd /c", "<invoke", "#!/bin/"]))
+        if has_code:
+            try:
+                clean_msgs = msgs[:1] + [
+                    {"role": "user", "content": f"你刚才调用工具完成了任务。请用一句简洁的话告诉用户任务已完成，附上文件名。不要输出任何代码或命令。"}
+                ]
+                clean_result = _call_api(clean_msgs, config, tools=[], temperature_override=0.3)
+                clean_text = clean_result.get("content", "")
+                if clean_text and len(clean_text) < 500:
+                    final_content = clean_text
+            except Exception:
+                pass
+
+    # 后处理自检（如果已经做过代码清理，跳过自检，避免重复）
+    if not _pending_files and task_type in ("complex", "creative") and strength > 0.1:
         check_prompt = (
             f"快速自检：有没有遗漏关键角度？\n用户说：{message}\n回答：{final_content[:500]}\n"
             f"没问题回复 OK，想补充输出修正版（50字内）。"
@@ -882,8 +1033,25 @@ def process_message(message: str, config: dict, session_id: str = None, on_tool_
     global _proactive_unanswered
     _proactive_unanswered = 0
 
-    # 先保存用户消息（如果后面崩了至少用户说了什么还在）
-    store.save_message("user", message, task_type)
+    # 防重复：检测回复中是否有重复段落，有则截断
+    if final_content and len(final_content) > 100:
+        lines = [l.strip() for l in final_content.split('\n') if l.strip()]
+        if len(lines) > 3:
+            seen = set()
+            deduped = []
+            for line in lines:
+                # 短行（<30字）不参与去重，避免误伤格式行
+                if len(line) < 30:
+                    deduped.append(line)
+                    continue
+                if line in seen:
+                    break  # 发现重复，截断后续内容
+                seen.add(line)
+                deduped.append(line)
+            if len(deduped) < len(lines):
+                final_content = '\n'.join(deduped)
+
+    # 用户消息已在请求开头保存，此处只保存助手回复
     msg_rowid = store.save_message("assistant", final_content, task_type, return_rowid=True)
 
     # 把本轮生成的文件关联到这条消息
@@ -908,6 +1076,12 @@ def get_reflection_log():
 def get_reflection_details():
     """暴露自省完整维度（供 HTTP API 调用）"""
     return _reflection_details
+
+
+def get_last_api_usage():
+    """返回最近一次 API 调用的 token 用量"""
+    with _usage_lock:
+        return dict(_last_api_usage)
 
 
 def get_experience_log():

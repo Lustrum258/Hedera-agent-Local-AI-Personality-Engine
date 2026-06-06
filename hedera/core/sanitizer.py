@@ -81,22 +81,19 @@ _BLOCKED_COMMANDS = [
     # 删除/破坏
     "rm -rf", "rm -fr", "rmdir /s",
     "del /f /s", "rd /s /q",
-    # 网络攻击
-    "wget ", "curl ",  # 阻止通过 shell 下载（应该用内置 web_fetch）
     # 提权
     "sudo ", "su ", "runas",
     # 危险的 PowerShell
-    "Invoke-Expression", "Invoke-WebRequest",
+    "Invoke-Expression",
 ]
 
 _BLOCKED_PATTERNS = [
     r">\s*NUL",                # 重定向到 NUL
     r">\s*/dev/null",
-    r"\|",                     # 管道（过于灵活）
 ]
 
-_SHELL_TIMEOUT_MAX = 60       # 最大超时上限
-_SHELL_OUTPUT_MAX = 10000     # 最大输出字符数
+_SHELL_TIMEOUT_MAX = 600       # 最大超时上限（编码任务可能需要长时间编译）
+_SHELL_OUTPUT_MAX = 30000      # 最大输出字符数（增加以支持长编译输出）
 
 
 def validate_shell_command(cmd: str, timeout: int) -> dict | None:

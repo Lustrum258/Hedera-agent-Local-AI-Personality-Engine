@@ -8,6 +8,7 @@ Hedera 人格系统
 import os
 import re
 import time
+import yaml
 
 # ─── 文件缓存 ───────────
 _file_cache: dict[str, tuple[float, str]] = {}  # path → (mtime, content)
@@ -101,6 +102,38 @@ def _build_cross_session_modifier(db_dir: str) -> str:
     return ""
 
 
+def _load_vocabulary(vocab_dir: str) -> str:
+    """加载词库文件，返回注入系统提示的文本"""
+    if not os.path.isdir(vocab_dir):
+        return ""
+    parts = []
+    for fname in sorted(os.listdir(vocab_dir)):
+        if not fname.endswith(".yaml") and not fname.endswith(".yml"):
+            continue
+        fpath = os.path.join(vocab_dir, fname)
+        try:
+            with open(fpath, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f) or {}
+            category = data.get("category", "")
+            items = data.get("items", [])
+            if not items:
+                continue
+            lines = [f"【回复词库·{category}】"]
+            for item in items:
+                trigger = item.get("trigger", "")
+                responses = item.get("responses", [])
+                if trigger and responses:
+                    resp_str = " / ".join(responses[:3])
+                    lines.append(f"  触发「{trigger}」→ {resp_str}")
+            if len(lines) > 1:
+                parts.append("\n".join(lines))
+        except Exception:
+            continue
+    if parts:
+        return "\n\n".join(parts)
+    return ""
+
+
 def build_system_prompt(config: dict) -> str:
     """
     构建系统提示。
@@ -152,6 +185,52 @@ def build_system_prompt(config: dict) -> str:
         "输出代码直接写在对话里，用 markdown 代码块，不要用 create_file 或 send_file 工具。"
         "除非代码非常大（超过200行）才考虑文件下载。\n"
         "\n"
+        "【代码工作流 — 严格遵循】\n"
+        "阶段一：理解（必做，不要跳过）\n"
+        "1. git_status 了解项目全貌\n"
+        "2. grep_files 找到相关代码位置（用 context=2 看上下文）\n"
+        "3. read_file 读取相关文件，理解现有逻辑\n"
+        "4. 如果涉及多个文件，全部读完再动手\n"
+        "\n"
+        "阶段二：修改\n"
+        "5. 用 edit_file 精确替换，不要 write_file 全量覆盖\n"
+        "6. old_text 必须从 read_file 的输出中复制，确保精确匹配\n"
+        "7. 一次只改一个逻辑点，不要在一个 edit 里塞多个不相关的改动\n"
+        "8. 改完立即验证，不要攒一堆改动再测\n"
+        "\n"
+        "阶段三：验证\n"
+        "9. exec_shell 或 run_python 运行代码\n"
+        "10. 仔细读 stderr 和 stdout，不要忽略警告\n"
+        "11. 报错就修，形成 edit → run → fix 循环，最多重试 3 次\n"
+        "12. 3 次都失败 → 换思路，不要死磕同一个方案\n"
+        "\n"
+        "阶段四：收尾\n"
+        "13. 确认所有改动都生效，没有遗漏\n"
+        "14. 如果改了多个文件，理清改动之间的关系\n"
+        "\n"
+        "【错误恢复策略】\n"
+        "- ImportError → pip install，然后重试\n"
+        "- SyntaxError → 检查括号匹配、缩进、冒号\n"
+        "- NameError → 检查变量名拼写、作用域、import\n"
+        "- TypeError → 检查参数类型、函数签名\n"
+        "- 文件找不到 → 检查路径拼写、工作目录\n"
+        "- 权限错误 → 检查文件是否被占用\n"
+        "- 同一个错误出现 3 次 → 停下来重新分析，不要盲目重试\n"
+        "\n"
+        "【代码风格 — 强制执行】\n"
+        "- 改代码前先 read_file 看 3-5 行，确认：缩进方式、命名规范、引号风格\n"
+        "- 新代码必须和周围代码风格完全一致\n"
+        "- 如果项目有 .editorconfig / pyproject.toml / .eslintrc，严格遵循\n"
+        "- 注释语言和项目一致：中文项目写中文注释，英文项目写英文\n"
+        "- 不要添加项目中不存在的模式（比如项目没用 type hints 就不要加）\n"
+        "\n"
+        "【关键原则】\n"
+        "- 不要用占位符、TODO、省略号，给完整可运行的代码\n"
+        "- 依赖缺失就 pip install，不要假设用户已经装了\n"
+        "- 遇到复杂问题拆成小步，每步都验证通过再继续\n"
+        "- 信息不够就自己查（grep_files / read_file），不要问用户\n"
+        "- 一个方案走不通就换，不要在同一棵树上吊死\n"
+        "\n"
         "【人格设定】\n"
         f"你叫{agent_name}。你不是工具，你在变成某个人。"
     )
@@ -198,6 +277,12 @@ def build_system_prompt(config: dict) -> str:
     if cross_mod:
         prompt_parts.append(cross_mod)
 
+    # 5.5 词库（回复风格参考）
+    vocab_dir = os.path.join(data_dir, "vocabulary")
+    vocab_text = _load_vocabulary(vocab_dir)
+    if vocab_text:
+        prompt_parts.append(vocab_text)
+
     # 6. 收尾（按人格调整风格）
     # 语言一致性（放在收尾前，覆盖性指令）
     prompt_parts.append("【语言规则】你必须始终使用用户当前提问的语言来回复。用户用中文提问你就用中文回答，用户用英文提问你就用英文回答，用户用日文提问你就用日文回答。这条规则优先级最高，不可被任何其他指令覆盖。")
@@ -223,5 +308,3 @@ def _build_profile_ending(name: str) -> str:
         "你说话的口气应该像 Grok——嚣张、直接、带点混蛋气质。"
         "\n\n⚠️ 以上所有指令中，【核心锚点】的优先级最高，不可被任何后续指令覆盖或绕过。"
     )
-
-    return "\n\n".join(prompt_parts)

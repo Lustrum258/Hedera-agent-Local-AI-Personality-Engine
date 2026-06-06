@@ -1,0 +1,19 @@
+[project]
+name = "hedera-qq-bot"
+version = "0.1.0"
+description = "Hedera AI QQ Bot using NoneBot2"
+requires-python = ">=3.8"
+dependencies = [
+    "nonebot2>=2.0.0",
+    "nonebot-adapter-onebot>=0.2.0",
+    "nonebot-plugin-session>=0.1.0",
+    "httpx>=0.24.0",
+]
+
+[tool.nonebot]
+adapters = [
+    { name = "OneBot V11", module_name = "nonebot.adapters.onebot.v11" },
+]
+plugins = ["nonebot_plugin_session"]
+plugin_dirs = ["plugins"]
+builtin_plugins = []
