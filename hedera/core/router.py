@@ -255,6 +255,21 @@ def clear_tool_progress(req_id: str):
         _tool_progress.pop(req_id, None)
 
 
+def _check_user_interrupt(store, original_message: str) -> bool:
+    """检查用户是否有新消息（插嘴），用于中断长任务"""
+    try:
+        history = store.get_recent_history(limit=5)
+        if not history:
+            return False
+        # 最近一条消息如果是用户消息且不是原始消息，说明用户插嘴了
+        last = history[-1]
+        if last.get("role") == "user" and last.get("content", "") != original_message:
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def _reflect_loop(config: dict, db_dir: str):
     if _shutdown_event.wait(timeout=60):  # 初始等待60s，可被 shutdown 提前中断
         return
@@ -448,7 +463,8 @@ def _do_reflection(history: list, config: dict, store: MemoryStore):
         _reflection_log[:] = _reflection_log[-50:]
     store.save_message("system", f"[自省] {summary}", "auto_reflect")
     # 触发经验蒸馏线程（如果还没启动）
-    _ensure_experience_thread(config, db_dir)
+    _db_dir = os.path.dirname(store.db_path)
+    _ensure_experience_thread(config, _db_dir)
 
 
 # ─── 状态 ───
@@ -894,6 +910,27 @@ def _process_message_inner(message, config, store, actual_session_id, saved_soul
                 func_args = json.loads(tc["function"]["arguments"])
             except (json.JSONDecodeError, KeyError):
                 func_args = {}
+
+            # 特殊工具：report_progress — 中间汇报给用户，不中断流程
+            if func_name == "report_progress":
+                progress_text = func_args.get("text", "")
+                if progress_text and on_tool_call:
+                    try:
+                        on_tool_call("report_progress", func_args, {"success": True, "reported": True})
+                    except Exception:
+                        pass
+                # 存入消息历史，让 LLM 知道已汇报
+                msgs.append({
+                    "role": "tool",
+                    "tool_call_id": tc.get("id", f"call_{tool_loop_count}"),
+                    "content": json.dumps({"success": True, "message": f"已汇报给用户: {progress_text[:100]}"}, ensure_ascii=False),
+                })
+                continue
+
+            # 检查用户是否插嘴（有新消息则中断当前任务）
+            if _check_user_interrupt(store, message):
+                final_content = "（任务被用户中断）"
+                break
 
             # 先查核心工具，再查插件工具
             tool_result = call_tool(func_name, func_args)

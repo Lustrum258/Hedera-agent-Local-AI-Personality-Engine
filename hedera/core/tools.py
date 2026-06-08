@@ -1046,6 +1046,74 @@ register_tool("get_learned_memes",
               _get_learned_memes,
               {"type": "object", "properties": {}, "required": []})
 
+# ─── 进度汇报 ───────────
+
+def _report_progress(text: str) -> dict:
+    """向用户汇报中间进度，不中断当前任务"""
+    return {"success": True, "reported": True, "message": text}
+
+register_tool("report_progress",
+              "Report intermediate progress to the user during long tasks. "
+              "Use this to keep the user informed about what you're doing. "
+              "The message is shown immediately without interrupting the workflow.",
+              _report_progress,
+              {"type": "object", "properties": {
+                  "text": {"type": "string", "description": "Progress message to show the user"}},
+               "required": ["text"]})
+
+# ─── 浏览器自动化（批量模式）───────────
+
+def _browser_run(steps: list) -> dict:
+    from hedera.core.browser import browser_run
+    return browser_run(steps)
+
+def _browser_script(code: str) -> dict:
+    from hedera.core.browser import browser_script
+    return browser_script(code)
+
+def _browser_cdp(method: str, params: dict = None) -> dict:
+    from hedera.core.browser import browser_cdp
+    return browser_cdp(method, params)
+
+def _browser_close() -> dict:
+    from hedera.core.browser import browser_close
+    return browser_close()
+
+register_tool("browser_run",
+              "Execute browser operations in one call. Actions: "
+              "navigate(url), see(screenshot+interactive elements), type(selector,text,enter), click(selector), "
+              "wait(ms), screenshot, content(max_length), scroll(direction,amount), select(selector,value), eval(code), back, forward, reload. "
+              "'see' returns a screenshot + list of clickable/typeable elements (no CSS needed). "
+              "Selectors can be placeholder text, name, aria-label, or button text instead of CSS.",
+              _browser_run,
+              {"type": "object", "properties": {
+                  "steps": {"type": "array", "description": "List of operations. Each has 'action' field + params."}
+               },
+               "required": ["steps"]})
+
+register_tool("browser_script",
+              "Execute JavaScript directly in the browser page. Fastest way to interact with DOM. "
+              "Can read/write page content, click elements, fill forms, all in one call. "
+              "Example: \"document.querySelector('#search').value='test'; document.querySelector('button').click()\"",
+              _browser_script,
+              {"type": "object", "properties": {
+                  "code": {"type": "string", "description": "JavaScript code to execute in browser context"}},
+               "required": ["code"]})
+
+register_tool("browser_cdp",
+              "Send raw CDP (Chrome DevTools Protocol) command. Low-level browser control. "
+              "Examples: Network.enable, Runtime.evaluate, Page.captureScreenshot",
+              _browser_cdp,
+              {"type": "object", "properties": {
+                  "method": {"type": "string", "description": "CDP method name"},
+                  "params": {"type": "object", "description": "CDP method parameters", "default": {}}},
+               "required": ["method"]})
+
+register_tool("browser_close",
+              "Close the browser and free resources.",
+              _browser_close,
+              {"type": "object", "properties": {}, "required": []})
+
 
 ALL_TOOL_NAMES = list(_TOOLS.keys())
 

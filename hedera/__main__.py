@@ -88,6 +88,14 @@ def main():
     sub.add_parser("gui", help="启动 Tkinter GUI")
     sub.add_parser("desktop", help="启动桌面版（WebView 原生窗口，推荐）")
 
+    # chat (CLI)
+    p_chat = sub.add_parser("chat", help="启动命令行交互界面")
+    p_chat.add_argument("--host", default="http://localhost:36313", help="服务器地址")
+    p_chat.add_argument("-p", "--password", help="登录密码")
+    p_chat.add_argument("-s", "--session", help="会话 ID")
+    p_chat.add_argument("cmd", nargs="?", help="直接执行命令")
+    p_chat.add_argument("cmd_args", nargs="*", help="命令参数")
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -99,6 +107,15 @@ def main():
     elif args.command == "desktop":
         from hedera.desktop import main as desktop_main
         desktop_main()
+    elif args.command == "chat":
+        from hedera.cli import run_cli
+        run_cli(
+            host=args.host or "http://localhost:36313",
+            password=args.password,
+            session=args.session,
+            cmd=args.cmd,
+            cmd_args=args.cmd_args or [],
+        )
     else:
         parser.print_help()
 

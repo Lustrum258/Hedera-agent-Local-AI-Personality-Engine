@@ -350,6 +350,7 @@ footer #attachBtn:hover:not(:disabled){background:#7da07d;transform:translateY(-
           <div class="cfg-tab" data-tab="img">图片</div>
           <div class="cfg-tab" data-tab="tts">TTS</div>
           <div class="cfg-tab" data-tab="search">搜索</div>
+          <div class="cfg-tab" data-tab="profile">人格</div>
         </div>
         <!-- LLM Tab -->
         <div class="cfg-pane active" data-pane="llm">
@@ -426,6 +427,34 @@ footer #attachBtn:hover:not(:disabled){background:#7da07d;transform:translateY(-
           <div class="setting-row">
             <label>Tavily API Key <span id="siTavilyKey" class="save-indicator">✓</span></label>
             <input type="password" style="position:absolute;left:-9999px" tabindex="-1"><input type="password" id="cfgTavilyKey" placeholder="tvly-..." autocomplete="new-password">
+          </div>
+        </div>
+        <!-- 人格 Tab -->
+        <div class="cfg-pane" data-pane="profile">
+          <div style="font-size:12px;color:var(--dim);margin-bottom:10px">创建自定义人格</div>
+          <div class="setting-row">
+            <label>人格名称</label>
+            <input type="text" id="cfgProfileName" placeholder="如：小助手、老师、程序员">
+          </div>
+          <div class="setting-row">
+            <label>标签（用逗号分隔）</label>
+            <input type="text" id="cfgProfileTag" placeholder="如：温柔、专业、幽默">
+          </div>
+          <div class="setting-row">
+            <label>说话风格</label>
+            <textarea id="cfgProfileStyle" rows="3" placeholder="如：说话简洁，喜欢用短句，偶尔开玩笑" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:12px;outline:none;font-family:var(--font);resize:vertical"></textarea>
+          </div>
+          <div class="setting-row">
+            <label>核心准则</label>
+            <textarea id="cfgProfileRules" rows="3" placeholder="如：永远说实话，不做没把握的承诺" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:12px;outline:none;font-family:var(--font);resize:vertical"></textarea>
+          </div>
+          <div class="setting-row">
+            <button class="sbtn" id="cfgProfileCreate">创建人格</button>
+            <span id="cfgProfileStatus" class="sstatus" style="margin-left:8px"></span>
+          </div>
+          <div id="profileListSettings" style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
+            <div style="font-size:12px;color:var(--dim);margin-bottom:8px">已有自定义人格</div>
+            <div id="customProfileList">加载中...</div>
           </div>
         </div>
         <!-- 底部 -->
@@ -878,8 +907,11 @@ function loadSessionMessages(sid){
       if(x.status===200){
         var d=JSON.parse(x.responseText);
         var allMsgs=d.messages||[];
-        // 只有后端有数据时才清空 DOM（防止后端还没存好消息时把界面清空）
-        if(allMsgs.length===0)return;
+        // 空会话：清空聊天区（CSS :empty 伪类自动显示占位文字）
+        if(allMsgs.length===0){
+          chat.innerHTML='';
+          return;
+        }
         chat.innerHTML='';
         var hasProcessing=false;
         var lastUserRole=false;
@@ -926,6 +958,13 @@ function loadSessionMessages(sid){
         if(hasProcessing||lastUserRole){
           showTyping();
           LOADING=true;
+          // 恢复请求 ID 以继续轮询工具进度
+          var savedReqId=LS.getItem('hedera_active_req');
+          if(savedReqId){
+            _activeReqId=savedReqId;
+            _lastProgressTs=Date.now();
+            setTimeout(_pollProgress,300);
+          }
           _pollForResponse(sid,0);
         }
       }
@@ -1047,13 +1086,38 @@ function hideTyping(){
 function removeToolIndicator(){
   var el=document.getElementById('toolIndicator');
   if(el)el.remove();
+  if(_progressEl){_progressEl.remove();_progressEl=null}
+  _toolCalls=[];
 }
 function escapeHtml(s){
   if(typeof s!=='string')return ''+s;
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+var _progressEl=null; // 进度消息元素（复用，不重复创建）
+var _toolCalls=[]; // 当前请求的工具调用记录
 function showToolCall(name, args, status, errMsg){
+  // report_progress：更新同一条进度消息，不重复创建
+  if(name==='report_progress'&&args&&args.text){
+    if(!_progressEl){
+      _progressEl=document.createElement('div');
+      _progressEl.className='msg bot';
+      _progressEl.style.opacity='0.7';
+      _progressEl.style.fontSize='13px';
+      chat.appendChild(_progressEl);
+    }
+    _progressEl.textContent='⏳ '+args.text;
+    chat.scrollTop=chat.scrollHeight;
+    return;
+  }
+  // 如果会话已切换，忽略旧会话的工具调用
+  if(_toolCallSession&&_toolCallSession!==SESSION_ID)return;
+  // 记录工具调用（同名工具只保留最新状态）
+  var found=false;
+  for(var i=0;i<_toolCalls.length;i++){
+    if(_toolCalls[i].name===name){_toolCalls[i]={name:name,args:args,status:status,error:errMsg};found=true;break}
+  }
+  if(!found)_toolCalls.push({name:name,args:args,status:status,error:errMsg});
   // 更新或追加工具调用指示器
   var el=document.getElementById('toolIndicator');
   if(!el){
@@ -1062,25 +1126,41 @@ function showToolCall(name, args, status, errMsg){
     el.className='msg tool-indicator';
     chat.appendChild(el);
   }
-  var argsPreview='';
-  if(args&&typeof args==='object'){
-    var vals=Object.values(args).filter(function(v){return typeof v==='string'}).map(function(v){return v.length>30?v.slice(0,30)+'...':v}).join(', ');
-    if(vals)argsPreview=' ('+vals+')';
+  // 显示所有工具调用
+  var html='';
+  for(var i=0;i<_toolCalls.length;i++){
+    var tc=_toolCalls[i];
+    var icon=tc.status==='success'?'✅':tc.status==='error'?'⚠️':'⏳';
+    var color=tc.status==='success'?'#6c8':tc.status==='error'?'#c66':'var(--dim)';
+    var argsPreview='';
+    if(tc.args&&typeof tc.args==='object'){
+      var vals=Object.values(tc.args).filter(function(v){return typeof v==='string'}).map(function(v){return v.length>30?v.slice(0,30)+'...':v}).join(', ');
+      if(vals)argsPreview=' ('+escapeHtml(vals)+')';
+    }
+    html+='<div style="margin:2px 0;font-size:12px;color:'+color+'">'+icon+' '+escapeHtml(tc.name)+argsPreview+'</div>';
   }
-  if(status==='success'){
-    el.innerHTML='<span class="ti-icon">✅</span> <span class="ti-name">'+name+'</span>'+escapeHtml(argsPreview)+' <span class="ti-done">完成</span>';
-  }else if(status==='error'){
-    el.innerHTML='<span class="ti-icon">⚠️</span> <span class="ti-name">'+name+'</span>'+escapeHtml(argsPreview)+' <span class="ti-err">失败: '+(errMsg||'')+'</span>';
-  }else{
-    // 正在执行
-    el.innerHTML='<span class="ti-icon">⏳</span> <span class="ti-name">'+name+'</span>'+escapeHtml(argsPreview)+' <span class="ti-doing">执行中...</span>';
-  }
+  el.innerHTML=html;
   chat.scrollTop=chat.scrollHeight;
 }
 
 function send(){
-  if(LOADING||!TOKEN)return;
+  if(!TOKEN)return;
   var text=input.value.trim();
+  // 如果正在执行任务，用户输入新消息 → 中断当前任务
+  if(LOADING&&text){
+    // 先保存用户消息到后端（用于中断检测）
+    var ix=new XMLHttpRequest();
+    ix.open('POST',HOST+'/chat');
+    ix.setRequestHeader('Content-Type','application/json');
+    ix.setRequestHeader('Authorization','Bearer '+TOKEN);
+    ix.timeout=10000;
+    ix.send(JSON.stringify({message:text,session_id:SESSION_ID,interrupt:true}));
+    addMsg(text,'user');
+    input.value='';input.style.height='auto';
+    setStatus('已发送中断指令，等待当前任务停止...');
+    return;
+  }
+  if(LOADING)return;
   // 有文件时允许不输入文本
   if(!text&&!_pendingFiles.length)return;
   // 没有会话时自动创建
@@ -1110,6 +1190,9 @@ function send(){
 function _doSend(text,files){
   input.value='';input.style.height='auto';
   _recovered=false;
+  _toolCallSession=SESSION_ID;  // 绑定工具调用到当前会话
+  _toolCalls=[]; // 清空工具调用记录
+  var oldIndicator=document.getElementById('toolIndicator');if(oldIndicator)oldIndicator.remove();
   addMsg(text,'user',false,files||[]);showTyping();LOADING=true;sendBtn.disabled=true;
   _activeReqId='';
   _lastProgressTs=Date.now();
@@ -1128,7 +1211,10 @@ function _doSend(text,files){
     // 获取请求 ID 用于轮询
     if(x.readyState===2){
       _activeReqId=x.getResponseHeader('X-Request-Id')||'';
-      if(_activeReqId)setTimeout(_pollProgress,600);
+      if(_activeReqId){
+        LS.setItem('hedera_active_req',_activeReqId);
+        setTimeout(_pollProgress,600);
+      }
     }
     // 实时工具调用（增量解析，行可能不完整但工具事件通常在独立行）
     if(x.readyState===3){
@@ -1151,6 +1237,7 @@ function _doSend(text,files){
     // 请求完成：完整解析所有行（确保跨 chunk 的行也能处理）
     if(x.readyState===4){
       _activeReqId='';
+      LS.removeItem('hedera_active_req');
       if(_activeChatXhr===x)_activeChatXhr=null;
       if(x.status===401){LS.removeItem('hedera_token');TOKEN='';showLogin();LOADING=false;sendBtn.disabled=false;return}
       var raw=x.responseText||'';
@@ -1174,7 +1261,10 @@ function _doSend(text,files){
               SESSION_ID=ev.session_id;LS.setItem('hedera_session_id',SESSION_ID);
             }
             loadSessions();
-            if(!SESSION_LABEL&&text){SESSION_LABEL=text.slice(0,40);LS.setItem('hedera_session_label',SESSION_LABEL);updateSessionLabel();}
+            // 使用后端自动生成的标题（第一条问答后）
+            if(ev.title&&!SESSION_LABEL){
+              SESSION_LABEL=ev.title;LS.setItem('hedera_session_label',SESSION_LABEL);updateSessionLabel();
+            }else if(!SESSION_LABEL&&text){SESSION_LABEL=text.slice(0,40);LS.setItem('hedera_session_label',SESSION_LABEL);updateSessionLabel();}
             input.focus();
           }else if(ev.type==='error'){
             foundDone=true;
@@ -1275,6 +1365,7 @@ var _recovered=false;
 var _activeReqId='';
 var _lastProgressTs=0;   // 最后一次收到进度/流数据的时间戳
 var _activeChatXhr=null;  // 当前聊天 XHR 引用，用于恢复时 abort
+var _toolCallSession=''; // 工具调用绑定的会话 ID
 function _pollProgress(){
   if(!LOADING||!_activeReqId)return;
   var p=new XMLHttpRequest();
@@ -1650,6 +1741,12 @@ function loadSessions(){
         if(e.target.closest('.sdel'))return;
         var sid=this.getAttribute('data-sid');
         if(sid===SESSION_ID){toggleSidebar(false);return}
+        // 切换会话时清理旧会话的工具状态
+        removeToolIndicator();
+        _toolCalls=[];
+        var oldTI=document.getElementById('toolIndicator');if(oldTI)oldTI.remove();
+        _toolCallSession='';
+        LOADING=false;sendBtn.disabled=false;
         SESSION_ID=sid;
         // 从 data-title 恢复会话标题
         var sel=$('sessList').querySelector('[data-sid="'+sid+'"]');
@@ -2135,9 +2232,101 @@ function delPreset(cat,idx){
   x.send();
 }
 
-function refreshAllPresets(){refreshPresetList('llm');refreshPresetList('img');refreshPresetList('tts')}
+function refreshAllPresets(){refreshPresetList('llm');refreshPresetList('img');refreshPresetList('tts');loadCustomProfiles()}
 
-  
+// ─── 自定义人格管理 ───
+function loadCustomProfiles(){
+  var container=$('customProfileList');
+  if(!container)return;
+  var x=new XMLHttpRequest();
+  x.open('GET',HOST+'/api/profiles');
+  x.setRequestHeader('Authorization','Bearer '+TOKEN);
+  x.onload=function(){
+    try{
+      var d=JSON.parse(x.responseText);
+      var profiles=d.profiles||[];
+      var custom=profiles.filter(function(p){
+        return p.name!=='冬青'&&p.name!=='茯苓';
+      });
+      if(!custom.length){
+        container.innerHTML='<div style="color:var(--dim);font-size:11px;padding:4px 0">暂无自定义人格</div>';
+        container.onclick=null;
+        return;
+      }
+      var html='';
+      for(var i=0;i<custom.length;i++){
+        var p=custom[i];
+        html+='<div class="preset-card" data-pname="'+escapeHtml(p.name)+'" style="margin-bottom:4px">'+
+          '<span class="pc-name">'+escapeHtml(p.name)+'</span>'+
+          '<span style="font-size:10px;color:var(--dim);margin-left:auto">'+escapeHtml(p.tag||'')+'</span>'+
+          '<button class="pc-btn del profile-del-btn" style="margin-left:6px">删除</button>'+
+          '</div>';
+      }
+      container.innerHTML=html;
+      // 事件委托：点删除按钮
+      container.onclick=function(e){
+        if(!e.target.classList.contains('profile-del-btn'))return;
+        var card=e.target.closest('[data-pname]');
+        if(!card)return;
+        var pname=card.getAttribute('data-pname');
+        if(!pname)return;
+        if(!confirm('删除人格 "'+pname+'" ？'))return;
+        var rx=new XMLHttpRequest();
+        rx.open('DELETE',HOST+'/api/profiles/'+encodeURIComponent(pname));
+        rx.setRequestHeader('Authorization','Bearer '+TOKEN);
+        rx.onload=function(){
+          try{
+            var rd=JSON.parse(rx.responseText);
+            if(rd.status==='ok'){loadCustomProfiles();loadNewSessProfiles()}
+          }catch(e){}
+        };
+        rx.send();
+      };
+    }catch(e){}
+  };
+  x.send();
+}
+
+if($('cfgProfileCreate')){
+  $('cfgProfileCreate').onclick=function(){
+    var name=$('cfgProfileName').value.trim();
+    if(!name){$('cfgProfileStatus').textContent='请输入名称';$('cfgProfileStatus').className='sstatus err';return}
+    var tag=$('cfgProfileTag').value.trim();
+    var style=$('cfgProfileStyle').value.trim();
+    var rules=$('cfgProfileRules').value.trim();
+    var body={name:name,tag:tag,style:style,personality:rules};
+    $('cfgProfileStatus').textContent='创建中...';$('cfgProfileStatus').className='sstatus';
+    var x=new XMLHttpRequest();
+    x.open('POST',HOST+'/api/profiles/create');
+    x.setRequestHeader('Content-Type','application/json');
+    x.setRequestHeader('Authorization','Bearer '+TOKEN);
+    x.onload=function(){
+      try{
+        var d=JSON.parse(x.responseText);
+        if(d.status==='ok'){
+          $('cfgProfileStatus').textContent='✓ 已创建: '+d.name;
+          $('cfgProfileStatus').className='sstatus ok';
+          $('cfgProfileName').value='';$('cfgProfileTag').value='';
+          $('cfgProfileStyle').value='';$('cfgProfileRules').value='';
+          loadCustomProfiles();
+          loadNewSessProfiles();
+          setTimeout(function(){$('cfgProfileStatus').textContent=''},3000);
+        }else{
+          $('cfgProfileStatus').textContent='创建失败: '+(d.error||'');
+          $('cfgProfileStatus').className='sstatus err';
+        }
+      }catch(e){
+        $('cfgProfileStatus').textContent='创建失败';
+        $('cfgProfileStatus').className='sstatus err';
+      }
+    };
+    x.onerror=function(){
+      $('cfgProfileStatus').textContent='网络错误';
+      $('cfgProfileStatus').className='sstatus err';
+    };
+    x.send(JSON.stringify(body));
+  };
+}
 
 // ─── 登出 ───
 $('logoutBtn').onclick=function(){

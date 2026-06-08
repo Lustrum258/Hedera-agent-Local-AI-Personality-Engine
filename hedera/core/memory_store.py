@@ -241,6 +241,15 @@ class MemoryStore:
         finally:
             conn.close()
 
+    def update_session_title(self, session_id: str, title: str):
+        """更新会话标题"""
+        conn = self._get_conn()
+        try:
+            conn.execute("UPDATE sessions SET title = ? WHERE session_id = ?", (title, session_id))
+            conn.commit()
+        finally:
+            conn.close()
+
     def get_session_messages(self, session_id: str, limit: int = 500) -> tuple:
         """获取指定会话的消息历史。返回 (messages, files_by_rowid)"""
         conn = self._get_conn()
