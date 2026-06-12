@@ -191,11 +191,14 @@ def estimate_max_context(model_name: str) -> int:
         "deepseek-coder": 1048576,
         "deepseek-chat": 1048576,
         "deepseek": 1048576,
+        "gemini": 1048576,
         "claude-3-opus": 200000,
         "claude-3-sonnet": 200000,
         "claude-3-haiku": 200000,
+        "claude": 200000,
         "qwen": 128000,
         "yi": 200000,
+        "mimo": 1048576,
     }
 
     for key, window in known_windows.items():

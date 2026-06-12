@@ -17,7 +17,8 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from typing import Callable
 
 from hedera.config import ConfigManager, load_config, get_data_dir
-from hedera.docs import DOCS_MARKDOWN
+from hedera.docs_zh_cn import DOCS_MARKDOWN as DOCS_MARKDOWN_ZH
+from hedera.docs_en_us import DOCS_MARKDOWN as DOCS_MARKDOWN_EN
 from hedera.core.router import (
     process_message, reset_state, shutdown as router_shutdown,
     get_reflection_log, get_reflection_details, get_experience_log,
@@ -449,6 +450,7 @@ class HederaHandler(BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header("Content-Type", ct or "application/octet-stream")
                 self.send_header("Content-Length", str(len(data)))
+                self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
                 self.end_headers()
                 self.wfile.write(data)
             except Exception as e:
@@ -708,10 +710,27 @@ class HederaHandler(BaseHTTPRequestHandler):
             return self._send_json({"error": str(e)}, 500)
 
     def _handle_docs(self):
-        return self._send_json({
-            "markdown": DOCS_MARKDOWN,
-            "title": "Hedera 常春藤 — 文档",
-        })
+        # Support ?lang=en or ?lang=zh query parameter
+        lang = "zh"
+        if "?" in self.path:
+            qs = self.path.split("?")[1]
+            for part in qs.split("&"):
+                if part.startswith("lang="):
+                    lang = part.split("=")[1]
+                    break
+
+        if lang == "en":
+            return self._send_json({
+                "markdown": DOCS_MARKDOWN_EN,
+                "title": "Hedera — Documentation",
+                "lang": "en",
+            })
+        else:
+            return self._send_json({
+                "markdown": DOCS_MARKDOWN_ZH,
+                "title": "Hedera 常春藤 — 文档",
+                "lang": "zh",
+            })
 
     def _handle_login(self):
         data = self._parse_body()
@@ -1678,9 +1697,14 @@ def run_server(config_path: str):
     _setup_api_keys(config)
 
     # 注入图像生成配置到 tools 模块
-    from hedera.core.tools import set_image_gen_config, set_model_endpoint
+    from hedera.core.tools import set_image_gen_config, set_model_endpoint, set_workspace_dir
     set_image_gen_config(config.get("image_gen", {}))
     set_model_endpoint(config.get("model", {}).get("endpoint", ""))
+
+    # 设置工作区目录
+    workspace_rel = config.get("paths", {}).get("workspace", "workspace")
+    workspace_dir = os.path.join(os.path.dirname(os.path.abspath(config_path)), workspace_rel)
+    set_workspace_dir(workspace_dir)
 
     # 配置 handler
     config["__hedera__"]["config_path"] = config_path

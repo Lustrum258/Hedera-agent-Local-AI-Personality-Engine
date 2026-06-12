@@ -6,8 +6,8 @@ image_gen:
   api_key: 
   api_key_env: HEDERA_IMAGE_KEY
   enabled: true
-  endpoint: https://cdn.sta1n.cn/v1/chat/completions
-  model: '[Web]gpt-image-2'
+  endpoint: 
+  model: 
   n: 1
   provider: openai
   quality: standard
@@ -15,9 +15,10 @@ image_gen:
 model:
   api_key: 
   api_key_env: HEDERA_API_KEY
-  endpoint: https://token-plan-sgp.xiaomimimo.com/v1/chat/completions
+  context_window: 1048576
+  endpoint: 
   max_tokens: 8192
-  name: mimo-v2.5
+  name: 
   temperature: 0.7
 noise:
   complex_strength: 0.08
@@ -58,7 +59,7 @@ tts:
   api_key: 
   api_key_env: HEDERA_TTS_KEY
   enabled: true
-  endpoint: https://token-plan-sgp.xiaomimimo.com/v1/chat/completions
-  model: mimo-v2.5-tts
+  endpoint: 
+  model: 
   provider: openai
-  voice: 茉莉
+  voice: 

@@ -492,7 +492,7 @@ class ExcelPlugin(PluginBase):
                             "description": "表头行，如 ['姓名', '年龄', '城市']"
                         },
                         "data": {
-                            "type": "array", "items": {"type": "array"},
+                            "type": "array", "items": {"type": "array", "items": {"type": "string"}},
                             "description": "数据行，如 [['张三', 25, '北京'], ['李四', 30, '上海']]"
                         },
                     },
@@ -526,7 +526,7 @@ class ExcelPlugin(PluginBase):
                         "cell": {"type": "string", "description": "单个单元格，如 'B3'"},
                         "value": {"description": "单元格值"},
                         "data": {
-                            "type": "array", "items": {"type": "array"},
+                            "type": "array", "items": {"type": "array", "items": {"type": "string"}},
                             "description": "二维数据，如 [['姓名','分数'], ['张三',95]]"
                         },
                         "start_cell": {"type": "string", "description": "数据写入起始位置，默认 A1"},

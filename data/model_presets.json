@@ -1,6 +1,13 @@
 {
   "presets": {
-    "llm": [],
+    "llm": [
+      {
+        "name": "gemini",
+        "cfgModelName": "[AN]gemini-3.5-flash",
+        "cfgModelEndpoint": "https://cdn.sta1n.cn/v1/chat/completions",
+        "cfgModelKey": "sk-62JmqwdDKaekwh6KjmcuVOBtaKfAetzk5rGK2giL8X0rrMnm"
+      }
+    ],
     "img": [],
     "tts": []
   }

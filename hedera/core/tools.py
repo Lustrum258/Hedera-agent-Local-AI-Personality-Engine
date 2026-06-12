@@ -20,9 +20,18 @@ _file_io_lock = threading.Lock()
 
 # ─── 文件上传目录（由 HTTP 服务设置） ───
 _uploads_dir: str = ""
+_workspace_dir: str = ""
 
 def set_uploads_dir(path: str):
     """设置上传目录（供 HTTP handler 调用）"""
+    global _uploads_dir
+    _uploads_dir = path
+
+def set_workspace_dir(path: str):
+    """设置工作区目录（供 HTTP handler 调用）"""
+    global _workspace_dir
+    _workspace_dir = path
+    os.makedirs(path, exist_ok=True)
     global _uploads_dir
     _uploads_dir = path
 
@@ -112,12 +121,14 @@ def _exec_shell(cmd: str, timeout: int = 120) -> dict:
         return validation
     try:
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True,
-                                timeout=timeout, encoding="utf-8", errors="replace")
+                                timeout=timeout, encoding="utf-8", errors="replace",
+                                cwd=_workspace_dir if _workspace_dir else None)
         return {
             "stdout": truncate_output(result.stdout),
             "stderr": truncate_output(result.stderr),
             "returncode": result.returncode,
             "success": result.returncode == 0,
+            "cwd": _workspace_dir or os.getcwd(),
         }
     except subprocess.TimeoutExpired:
         return {"stdout": "", "stderr": f"超时（{timeout}s）", "returncode": -1, "success": False}
@@ -140,7 +151,11 @@ def _cleanup_temp_scripts():
 
 
 def _write_file(path: str, content: str) -> dict:
-    """原子写入：先写 .tmp 再 rename，崩溃不影响原文件"""
+    """原子写入：先写 .tmp 再 rename，崩溃不影响原文件。
+    相对路径默认写入工作区目录。"""
+    # 相对路径 → 工作区路径
+    if not os.path.isabs(path) and _workspace_dir:
+        path = os.path.join(_workspace_dir, path)
     abs_path = validate_write_path(path)
     if abs_path is None:
         return {"success": False, "error": f"路径被阻止: {path[:60]}"}
@@ -652,14 +667,15 @@ def _find_definition(name: str, path: str = ".", include: str = "") -> dict:
 
 # 注册工具
 register_tool("exec_shell",
-              "Execute shell commands (PowerShell/cmd). Use for running code, installing packages, git operations. "
+              "Execute shell commands. Runs in workspace directory by default. "
+              "Use for running code, installing packages, git operations. "
               "Write code to files first with write_file, then execute. "
               "Default 120s timeout, max 600s. Returns stdout, stderr, returncode.",
               _exec_shell, {"type": "object", "properties": {"cmd": {"type": "string"},
                              "timeout": {"type": "integer", "default": 120}}, "required": ["cmd"]})
-register_tool("read_file", "Read a text file. Large files are auto-truncated; use offset+limit to read in chunks.", _read_file,
+register_tool("read_file", "Read a text file. Can read any path. Large files auto-truncated; use offset+limit to read in chunks.", _read_file,
               {"type": "object", "properties": {"path": {"type": "string"}, "offset": {"type": "integer", "default": 0, "description": "Start line (1-based)"}, "limit": {"type": "integer", "default": 0, "description": "Max lines to read (0=all)"}}, "required": ["path"]})
-register_tool("write_file", "Write a text file.", _write_file,
+register_tool("write_file", "Write a text file. Defaults to workspace directory if path is relative.", _write_file,
               {"type": "object", "properties": {"path": {"type": "string"}, "content": {"type": "string"}},
                "required": ["path", "content"]})
 register_tool("list_dir", "List directory contents.", _list_dir,
@@ -712,6 +728,204 @@ register_tool("git_status",
               _git_status, {"type": "object", "properties": {
                   "path": {"type": "string", "description": "Project root directory", "default": "."}},
               "required": []})
+
+# ─── 代码增强工具 ───────────
+
+def _run_tests(path: str = ".", framework: str = "") -> dict:
+    """自动检测并运行项目的测试框架"""
+    safe_path = validate_read_path(path)
+    if safe_path is None:
+        return {"success": False, "error": f"路径被阻止: {path[:60]}"}
+
+    # 自动检测测试框架
+    detected = framework
+    if not detected:
+        # 检查常见测试配置文件
+        test_files = {
+            "pytest": ["pytest.ini", "pyproject.toml", "setup.cfg"],
+            "unittest": [],  # Python 内置
+            "jest": ["jest.config.js", "jest.config.ts", "package.json"],
+            "mocha": [".mocharc.yml", ".mocharc.js"],
+            "vitest": ["vitest.config.ts", "vitest.config.js"],
+        }
+        for fw, files in test_files.items():
+            for f in files:
+                if os.path.exists(os.path.join(safe_path, f)):
+                    detected = fw
+                    break
+            if detected:
+                break
+
+        # 检查 Python 测试文件
+        if not detected:
+            for root, dirs, files in os.walk(safe_path):
+                for f in files:
+                    if f.startswith("test_") and f.endswith(".py"):
+                        detected = "pytest"
+                        break
+                if detected:
+                    break
+
+        # 检查 JS 测试文件
+        if not detected:
+            for root, dirs, files in os.walk(safe_path):
+                for f in files:
+                    if f.endswith(".test.js") or f.endswith(".test.ts") or f.endswith(".spec.js"):
+                        detected = "jest"
+                        break
+                if detected:
+                    break
+
+    if not detected:
+        return {"success": False, "error": "未检测到测试框架，请指定 framework 参数"}
+
+    # 运行测试
+    test_cmds = {
+        "pytest": f"{sys.executable} -m pytest -v --tb=short",
+        "unittest": f"{sys.executable} -m unittest discover -v",
+        "jest": "npx jest --verbose",
+        "mocha": "npx mocha --reporter spec",
+        "vitest": "npx vitest run",
+    }
+
+    cmd = test_cmds.get(detected)
+    if not cmd:
+        return {"success": False, "error": f"不支持的测试框架: {detected}"}
+
+    try:
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True,
+                                timeout=120, encoding="utf-8", errors="replace",
+                                cwd=safe_path)
+        return {
+            "success": result.returncode == 0,
+            "framework": detected,
+            "stdout": truncate_output(result.stdout),
+            "stderr": truncate_output(result.stderr),
+            "returncode": result.returncode,
+        }
+    except subprocess.TimeoutExpired:
+        return {"success": False, "error": "测试超时（120s）"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+def _edit_file_by_line(path: str, start_line: int, end_line: int, new_content: str) -> dict:
+    """按行号范围精确编辑文件（比文本匹配更可靠）
+    start_line: 起始行号（从1开始）
+    end_line: 结束行号（包含）
+    new_content: 替换内容"""
+    safe_path = validate_write_path(path)
+    if safe_path is None:
+        return {"success": False, "error": f"路径被阻止: {path[:60]}"}
+    with _file_io_lock:
+        try:
+            with open(safe_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+
+            total = len(lines)
+            if start_line < 1 or start_line > total:
+                return {"success": False, "error": f"起始行 {start_line} 超出范围 (1-{total})"}
+            if end_line < start_line or end_line > total:
+                return {"success": False, "error": f"结束行 {end_line} 超出范围 ({start_line}-{total})"}
+
+            # 构建新内容
+            new_lines = (new_content + '\n').splitlines(True)
+            new_file = lines[:start_line-1] + new_lines + lines[end_line:]
+
+            # 原子写入
+            import difflib
+            old_text = ''.join(lines[start_line-1:end_line])
+            diff = list(difflib.unified_diff(
+                old_text.splitlines(keepends=True),
+                new_content.splitlines(keepends=True),
+                fromfile=f"a/{path}",
+                tofile=f"b/{path}",
+                n=3
+            ))
+
+            tmp_path = safe_path + '.hedera_tmp'
+            with open(tmp_path, 'w', encoding='utf-8') as f:
+                f.writelines(new_file)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_path, safe_path)
+
+            return {
+                "success": True,
+                "path": safe_path,
+                "lines_replaced": end_line - start_line + 1,
+                "new_lines": len(new_lines),
+                "diff": ''.join(diff)[:2000],
+            }
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+
+def _find_references(name: str, path: str = ".", include: str = "") -> dict:
+    """查找函数、变量、类的所有引用位置（比 grep_files 更精准）"""
+    safe_path = validate_read_path(path)
+    if safe_path is None:
+        return {"success": False, "error": f"路径被阻止: {path[:60]}"}
+    try:
+        # 构建精确匹配模式（避免部分匹配）
+        patterns = [
+            rf'\b{re.escape(name)}\b',  # 单词边界匹配
+        ]
+        results = []
+        for root, dirs, files in os.walk(safe_path):
+            dirs[:] = [d for d in dirs if d not in (
+                '.git', 'node_modules', '__pycache__', '.venv', 'venv',
+                'env', '.env', '.idea', '.vscode', 'dist', 'build')]
+            for fname in files:
+                if include:
+                    ext = include if include.startswith('.') else f'.{include}'
+                    if not fname.endswith(ext):
+                        continue
+                fpath = os.path.join(root, fname)
+                if os.path.getsize(fpath) > 1_000_000:
+                    continue
+                try:
+                    with open(fpath, 'r', encoding='utf-8', errors='ignore') as f:
+                        for i, line in enumerate(f, 1):
+                            if re.search(patterns[0], line):
+                                rel = os.path.relpath(fpath, safe_path)
+                                results.append({"file": rel, "line": i, "text": line.rstrip()[:200]})
+                                if len(results) >= 50:
+                                    return {"success": True, "results": results, "truncated": True}
+                except Exception:
+                    continue
+        return {"success": True, "results": results, "truncated": False}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+register_tool("run_tests",
+              "Auto-detect and run project test framework (pytest, jest, mocha, etc). "
+              "Returns test results with pass/fail counts.",
+              _run_tests, {"type": "object", "properties": {
+                  "path": {"type": "string", "description": "Project directory", "default": "."},
+                  "framework": {"type": "string", "description": "Force framework (pytest/jest/mocha)", "default": ""}},
+              "required": []})
+
+register_tool("edit_file_by_line",
+              "Edit file by line numbers (more reliable than text matching for large edits). "
+              "Specify start_line and end_line to replace that range with new_content.",
+              _edit_file_by_line, {"type": "object", "properties": {
+                  "path": {"type": "string", "description": "File path"},
+                  "start_line": {"type": "integer", "description": "Start line (1-based)"},
+                  "end_line": {"type": "integer", "description": "End line (inclusive)"},
+                  "new_content": {"type": "string", "description": "Replacement content"}},
+              "required": ["path", "start_line", "end_line", "new_content"]})
+
+register_tool("find_references",
+              "Find all usages/references of a function, variable, or class name. "
+              "More precise than grep_files for code symbols.",
+              _find_references, {"type": "object", "properties": {
+                  "name": {"type": "string", "description": "Symbol name to find"},
+                  "path": {"type": "string", "description": "Directory to search", "default": "."},
+                  "include": {"type": "string", "description": "File extension filter", "default": ""}},
+              "required": ["name"]})
+
 def _cache_stats() -> dict:
     """查看缓存状态"""
     return {"success": True, "caches": {
@@ -740,7 +954,8 @@ def _clear_cache(target: str = "all") -> dict:
 
 
 def _run_python(code: str, timeout: int = 120) -> dict:
-    """Run Python code in a temp file with proper error handling."""
+    """Run Python code in a temp file with proper error handling.
+    Runs in workspace directory by default."""
     import tempfile
     # 校验代码安全性（阻止危险模块和系统调用）
     code_lower = code.lower()
@@ -751,20 +966,23 @@ def _run_python(code: str, timeout: int = 120) -> dict:
     tmp = None
     try:
         tmp = tempfile.NamedTemporaryFile(
-            mode="w", suffix=".py", delete=False, encoding="utf-8"
+            mode="w", suffix=".py", delete=False, encoding="utf-8",
+            dir=_workspace_dir if _workspace_dir else None
         )
         tmp.write(code)
         tmp.close()
         result = subprocess.run(
             [sys.executable or "python", tmp.name],
             capture_output=True, text=True,
-            timeout=timeout, encoding="utf-8", errors="replace"
+            timeout=timeout, encoding="utf-8", errors="replace",
+            cwd=_workspace_dir if _workspace_dir else None
         )
         return {
             "stdout": truncate_output(result.stdout),
             "stderr": truncate_output(result.stderr),
             "returncode": result.returncode,
             "success": result.returncode == 0,
+            "cwd": _workspace_dir or os.getcwd(),
         }
     except subprocess.TimeoutExpired:
         return {"stdout": "", "stderr": f"超时（{timeout}s）", "returncode": -1, "success": False}
@@ -1087,7 +1305,10 @@ register_tool("browser_run",
               "Selectors can be placeholder text, name, aria-label, or button text instead of CSS.",
               _browser_run,
               {"type": "object", "properties": {
-                  "steps": {"type": "array", "description": "List of operations. Each has 'action' field + params."}
+                  "steps": {"type": "array", "description": "List of operations. Each has 'action' field + params.",
+                            "items": {"type": "object", "properties": {
+                                "action": {"type": "string", "description": "Operation type"}
+                            }, "required": ["action"]}}
                },
                "required": ["steps"]})
 

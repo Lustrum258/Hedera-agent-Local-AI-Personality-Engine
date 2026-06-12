@@ -1,34 +1,34 @@
-# 贡献指南
+# Contributing to Hedera
 
-感谢你对 Hedera 项目的兴趣！
+Thank you for your interest in Hedera!
 
-## 如何贡献
+## How to Contribute
 
-### 报告 Bug
+### Report Bugs
 
-1. 在 [Issues](https://github.com/Lustrum258/Hedera-agent-Local-AI-Personality-Engine/issues) 中搜索是否已有相同问题
-2. 如果没有，创建一个新的 Issue，包含：
-   - 问题描述
-   - 复现步骤
-   - 期望行为 vs 实际行为
-   - 环境信息（Python 版本、操作系统）
+1. Search [Issues](https://github.com/Lustrum258/Hedera-agent-Local-AI-Personality-Engine/issues) for existing reports
+2. If none found, create a new Issue with:
+   - Bug description
+   - Steps to reproduce
+   - Expected vs actual behavior
+   - Environment info (Python version, OS)
 
-### 提交代码
+### Submit Code
 
-1. Fork 本仓库
-2. 创建你的特性分支：`git checkout -b feature/my-feature`
-3. 提交你的改动：`git commit -m 'Add some feature'`
-4. 推送到分支：`git push origin feature/my-feature`
-5. 创建一个 Pull Request
+1. Fork this repository
+2. Create your feature branch: `git checkout -b feature/my-feature`
+3. Commit your changes: `git commit -m 'Add some feature'`
+4. Push to branch: `git push origin feature/my-feature`
+5. Create a Pull Request
 
-### 代码规范
+### Code Standards
 
-- Python 3.10+ 兼容
-- 遵循 PEP 8 风格
-- 新功能请添加适当的注释
-- 保持代码简洁，避免不必要的依赖
+- Python 3.10+ compatible
+- Follow PEP 8 style
+- Add comments for new features
+- Keep code clean, avoid unnecessary dependencies
 
-### 开发环境
+### Development Setup
 
 ```bash
 git clone https://github.com/Lustrum258/Hedera-agent-Local-AI-Personality-Engine.git
@@ -37,6 +37,6 @@ pip install -e .
 python -m hedera desktop
 ```
 
-## 许可证
+## License
 
-提交代码即表示你同意你的贡献以 [MIT 许可证](LICENSE) 发布。
+By submitting code, you agree your contributions are licensed under the [MIT License](LICENSE).

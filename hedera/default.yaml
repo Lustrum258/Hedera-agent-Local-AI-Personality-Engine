@@ -10,6 +10,7 @@ identity:
 # 路径
 paths:
   data_dir: "data"                   # 运行时数据目录（SQLite、日志等）
+  workspace: "workspace"             # 工作区目录（代码、脚本、生成的文件）
 
 # 模型
 model:

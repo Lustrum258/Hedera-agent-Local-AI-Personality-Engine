@@ -1,71 +1,72 @@
-# Hedera 独立版构建指南
+# Hedera Build Guide
 
-## 前置条件
+## Prerequisites
 
-1. Python 3.10+（已装: `D:\Conda\python.exe`）
-2. 安装构建依赖：
+1. Python 3.10+
+2. Install build dependencies:
    ```
    pip install pyinstaller openpyxl
    ```
-   注: requests 和 pyyaml 已在项目依赖中会自动装
+   Note: `requests` and `pyyaml` are already in project dependencies.
 
-## 构建步骤
+## Build Steps
 
-### 方法一：一键构建 EXE
+### Method 1: Build EXE
 
-双击 `build_exe.bat`，自动完成：
-1. 检查/安装所有依赖
-2. 收集静态文件和插件
-3. 打包为单个 EXE 文件
-4. 输出到 `dist/Hedera.exe`
+Run `build_exe.bat` to automatically:
 
-产出：
+1. Check/install all dependencies
+2. Collect static files and plugins
+3. Package into single EXE
+4. Output to `dist/Hedera.exe`
+
+Output:
 ```
 hedera/dist/
-├── Hedera.exe        ← 主程序（双击或命令行）
-├── config.yaml       ← 配置文件（首次需填 API Key）
-├── data/             ← 运行时数据（灵魂、记忆）
-└── plugins/          ← 插件目录
+├── Hedera.exe        ← Main program
+├── config.yaml       ← Config file (fill API Key on first use)
+├── data/             ← Runtime data
+└── plugins/          ← Plugin directory
 ```
 
-### 方法二：构建安装包
+### Method 2: Build Installer
 
-需要额外安装 [Inno Setup 6](https://jrsoftware.org/isinfo.php)
+Requires [Inno Setup 6](https://jrsoftware.org/isinfo.php)
 
-1. 先运行 `build_exe.bat` 生成 `dist/` 目录
-2. 双击 `installer.iss`（Inno Setup 会打开）
-3. 菜单 Build → Compile
-4. 输出到 `installer/Hedera_0.7.0_Setup.exe`
+1. Run `build_exe.bat` first
+2. Open `installer.iss` in Inno Setup
+3. Menu: Build → Compile
+4. Output to `installer/Hedera_0.7.0_Setup.exe`
 
-方法二产出的是标准的 Windows 安装程序：
-- 选择安装路径
-- 创建桌面快捷方式
-- 可选开机自启
-- 自动添加防火墙规则
-- 含卸载程序
+The installer provides:
+- Custom install path
+- Desktop shortcut
+- Optional auto-start
+- Firewall rules
+- Uninstaller
 
-## 使用方法
+## Usage
 
-### 构建后直接运行
+### Run after build
 ```
 dist\Hedera.exe serve
 ```
 
-### 首次使用
+### First use
 ```
-dist\Hedera.exe init    # 初始化工作目录
-# 编辑 config.yaml 填入 DeepSeek API Key
-dist\Hedera.exe serve   # 启动服务
+dist\Hedera.exe init    # Initialize workspace
+# Edit config.yaml with your API Key
+dist\Hedera.exe serve   # Start server
 ```
 
-访问 `http://localhost:36313` 即可聊天。
+Visit `http://localhost:36313` to chat.
 
-## 构建信息
+## Build Info
 
-| 项目 | 值 |
-|------|-----|
-| 版本 | 0.7.0 |
+| Item | Value |
+|------|-------|
+| Version | 0.7.0 |
 | Python | 3.10+ |
-| 打包工具 | PyInstaller 6.x |
-| 单文件大小 | ~30-50 MB |
-| 依赖 | openpyxl, requests, pyyaml |
+| Packager | PyInstaller 6.x |
+| Single file size | ~30-50 MB |
+| Dependencies | openpyxl, requests, pyyaml |

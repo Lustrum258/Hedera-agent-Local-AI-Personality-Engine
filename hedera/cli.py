@@ -123,6 +123,7 @@ def _print_help():
   {_green('/profile <名称>')} 切换人格（新建会话时生效）
   {_green('/createprofile')}  创建自定义人格
   {_green('/delprofile <名>')} 删除自定义人格
+  {_green('/skills')}         查看已加载技能
   {_green('/new')}            新建会话
   {_green('/list')}           列出所有会话
   {_green('/switch <id>')}    切换会话
@@ -280,6 +281,17 @@ def _stream_chat(host, token, message, session_id):
             args = ev.get("args", {})
             error = ev.get("error", "")
 
+            # 实时 token 用量
+            if name == "_usage" and args.get("tokens"):
+                u = args["tokens"]
+                p = u.get("prompt_tokens", 0)
+                c = u.get("completion_tokens", 0)
+                t = u.get("total_tokens", 0)
+                if t > 0:
+                    sys.stdout.write(f"\r  {_dim(f'tokens: {p} in + {c} out = {t}')}")
+                    sys.stdout.flush()
+                continue
+
             # 更新当前操作状态（给 spinner 用）
             if status == "running" and name != "report_progress":
                 _current_tool[0] = name
@@ -291,6 +303,8 @@ def _stream_chat(host, token, message, session_id):
             if key not in tool_shown or status == "error":
                 tool_shown.add(key)
                 if name != "report_progress":
+                    # 清除 token 行再打印工具调用
+                    sys.stdout.write("\r" + " " * 60 + "\r")
                     print(_format_tool_call(name, args, status))
                     if error:
                         print(_red(f"    错误: {error[:100]}"))
@@ -357,6 +371,70 @@ def cmd_list_sessions(host, token):
         print()
 
 
+def _interactive_select(options, prompt="选择"):
+    """
+    交互式选择：上下键移动，回车确认
+    options: [(value, label), ...]
+    返回选中的 value，或 None（取消）
+    """
+    if not options:
+        return None
+    import sys
+    selected = 0
+    # 隐藏光标
+    sys.stdout.write("\033[?25l")
+    try:
+        while True:
+            # 渲染列表
+            for i, (val, label) in enumerate(options):
+                prefix = "  > " if i == selected else "    "
+                color_fn = _green if i == selected else _dim
+                sys.stdout.write(f"\r\033[K{prefix}{color_fn(label)}\n")
+            # 移动光标到列表上方
+            sys.stdout.write(f"\033[{len(options)}A")
+            sys.stdout.flush()
+
+            # 读取按键
+            if os.name == 'nt':
+                import msvcrt
+                ch = msvcrt.getwch()
+                if ch == '\r':  # Enter
+                    break
+                elif ch == '\x00' or ch == '\xe0':  # 特殊键
+                    ch2 = msvcrt.getwch()
+                    if ch2 == 'H':  # 上
+                        selected = (selected - 1) % len(options)
+                    elif ch2 == 'P':  # 下
+                        selected = (selected + 1) % len(options)
+                elif ch == '\x1b':  # Escape
+                    return None
+            else:
+                import tty, termios
+                fd = sys.stdin.fileno()
+                old = termios.tcgetattr(fd)
+                try:
+                    tty.setraw(fd)
+                    ch = sys.stdin.read(1)
+                    if ch == '\r':
+                        break
+                    elif ch == '\x1b':
+                        ch2 = sys.stdin.read(1)
+                        if ch2 == '[':
+                            ch3 = sys.stdin.read(1)
+                            if ch3 == 'A':
+                                selected = (selected - 1) % len(options)
+                            elif ch3 == 'B':
+                                selected = (selected + 1) % len(options)
+                finally:
+                    termios.tcsetattr(fd, termios.TCSADRAIN, old)
+    finally:
+        # 显示光标
+        sys.stdout.write("\033[?25h")
+        sys.stdout.flush()
+
+    return options[selected][0]
+
+
 def cmd_list_profiles(host, token):
     """列出所有人格"""
     resp = _api(host, "GET", "/api/profiles", token)
@@ -372,6 +450,59 @@ def cmd_list_profiles(host, token):
             tag = p.get("tag", "")
             print(f"  {_green(name)}  {_dim(tag)}")
         print()
+
+
+def cmd_select_profile(host, token):
+    """交互式选择人格"""
+    resp = _api(host, "GET", "/api/profiles", token)
+    if resp and resp.status_code != 200:
+        print(_red("  获取人格列表失败"))
+        return None
+    profiles = resp.json().get("profiles", [])
+    if not profiles:
+        print(_dim("  暂无人格"))
+        return None
+    options = [(p["name"], f"{p['name']}  {p.get('tag','')}") for p in profiles]
+    print(f"\n  {_cyan('选择人格')}（上下键选择，回车确认）\n")
+    return _interactive_select(options)
+
+
+def cmd_list_skills(host, token):
+    """列出已加载的技能"""
+    # 技能是通过插件系统加载的，通过 /api/presets 或工具列表间接获取
+    # 这里直接读取 skills/ 目录
+    skills_dir = os.path.join(os.getcwd(), "skills")
+    if not os.path.isdir(skills_dir):
+        print(_dim("  暂无技能"))
+        return
+    skills = []
+    for fname in sorted(os.listdir(skills_dir)):
+        if not (fname.endswith('.yaml') or fname.endswith('.yml') or fname.endswith('.md')):
+            continue
+        fpath = os.path.join(skills_dir, fname)
+        try:
+            if fname.endswith('.md'):
+                # 读取 markdown 的第一行作为名称
+                with open(fpath, 'r', encoding='utf-8') as f:
+                    first_line = f.readline().strip()
+                    name = first_line.lstrip('#').strip() if first_line.startswith('#') else os.path.splitext(fname)[0]
+                    desc = f.readline().strip()[:50] if f else ""
+            else:
+                import yaml
+                with open(fpath, 'r', encoding='utf-8') as f:
+                    data = yaml.safe_load(f) or {}
+                name = data.get('name', os.path.splitext(fname)[0])
+                desc = data.get('description', '')[:50]
+            skills.append({'name': name, 'desc': desc, 'file': fname})
+        except:
+            skills.append({'name': os.path.splitext(fname)[0], 'desc': '', 'file': fname})
+    if not skills:
+        print(_dim("  暂无技能"))
+        return
+    print(f"\n  {_cyan('已加载技能')} ({len(skills)} 个)\n")
+    for s in skills:
+        print(f"  {_green(s['name'])}  {_dim(s['desc'])}  {_dim(s['file'])}")
+    print()
 
 
 def cmd_new_session(host, token, profile=None):
@@ -579,6 +710,8 @@ def _run_cli(host, password=None, session=None, cmd=None, cmd_args=None):
             cmd_list_sessions(host, token)
         elif cmd == "profiles":
             cmd_list_profiles(host, token)
+        elif cmd == "skills":
+            cmd_list_skills(host, token)
         elif cmd == "config":
             if len(cmd_args) >= 2:
                 cmd_config(host, token, cmd_args[0], cmd_args[1])
@@ -662,16 +795,28 @@ def _run_cli(host, password=None, session=None, cmd=None, cmd_args=None):
                     if new_sid:
                         session_id = new_sid
                 else:
-                    cmd_list_profiles(host, token)
+                    selected = cmd_select_profile(host, token)
+                    if selected:
+                        new_sid = cmd_new_session(host, token, selected)
+                        if new_sid:
+                            session_id = new_sid
             elif cmd == "/createprofile":
                 cmd_create_profile(host, token)
             elif cmd == "/delprofile":
                 cmd_delete_profile(host, token, arg)
+            elif cmd == "/skills":
+                cmd_list_skills(host, token)
             elif cmd == "/clear":
                 os.system("cls" if os.name == "nt" else "clear")
                 _print_welcome()
             elif cmd == "/new":
-                new_sid = cmd_new_session(host, token, arg if arg else None)
+                profile = arg if arg else None
+                if not profile:
+                    # 没指定人格，让用户选择
+                    selected = cmd_select_profile(host, token)
+                    if selected:
+                        profile = selected
+                new_sid = cmd_new_session(host, token, profile)
                 if new_sid:
                     session_id = new_sid
             elif cmd == "/list":

@@ -22,50 +22,46 @@ class NoiseInjector:
     def _gaussian_transform(self, text: str, strength: float) -> str:
         """
         轻微措辞扰动（低噪声）：
-        - 将一部分标点换成波浪号（制造细微犹豫感）
-        - 重复个别短词（制造强调或不确定感）
+        - 随机调整句式结构
+        - 替换部分连接词
+        - 轻微改变语序
         """
         if strength < 0.03:
             return text
 
         modified = text
-        # 随机替换部分句号/问号为 ~
-        # 只影响句子中间，不影响最外结构
-        parts = re.split(r'(?<=[。！？.!?])\s*', modified)
-        if len(parts) > 2:
-            idx = random.randint(0, len(parts) - 1)
-            if strength > random.random():
-                parts[idx] = parts[idx].rstrip("。！？.!?").rstrip() + "~"
-            modified = " ".join(parts)
 
-        # 偶尔重复一个短词
-        words = list(filter(None, re.split(r'(\s+)', modified)))
-        for i in range(len(words) - 1):
-            if len(words[i].strip()) <= 2 and strength > random.random() * 3:
-                words.insert(i, words[i] + " ")
+        # 句式微调：替换连接词
+        swaps = [
+            ("所以", "因此"), ("但是", "不过"), ("而且", "并且"),
+            ("如果", "要是"), ("可以", "能够"), ("应该", "应当"),
+            ("因为", "由于"), ("所以", "因而"), ("然后", "接着"),
+        ]
+        for src, dst in swaps:
+            if src in modified and random.random() < strength * 2:
+                modified = modified.replace(src, dst, 1)
                 break
-        modified = "".join(words)
 
         return modified
 
     def _poisson_transform(self, text: str, count: int) -> str:
         """
         隐性思路扩展（中噪声）：
-        - 在句子间插入短小的思考标记，但以"……"或"——"断句，看起来像自然犹豫
-        - 或者在末尾追加看似不经意的一句延伸
+        - 在句子间插入自然的犹豫/停顿
+        - 末尾追加不经意的延伸想法
         """
         modified = text
 
-        # 在段落中间插入断点
+        # 在句子间插入自然停顿
         if count >= 1:
             sentences = re.split(r'(?<=[。！？.!?])\s*', modified)
             if len(sentences) >= 2:
                 idx = random.randint(0, len(sentences) - 1)
-                # 不直接加，而是用思想断句代替某个句子内部的停顿
-                # 或者让某个关键概念显得模糊
-                pass
+                pauses = ["……", "——", "，不过", "，其实"]
+                sentences[idx] = sentences[idx].rstrip() + random.choice(pauses)
+                modified = "".join(sentences)
 
-        # 追加一条看似不经意的延伸想法
+        # 追加延伸想法
         extras = [
             "还有别的可能吗",
             "换个角度想想",
@@ -75,7 +71,6 @@ class NoiseInjector:
         ]
         if count >= 2:
             extra = random.choice(extras)
-            # 附加在末尾，用浅显的自然语气
             modified += " " + extra
 
         return modified
@@ -84,24 +79,22 @@ class NoiseInjector:
         """
         风格突变（高噪声）：
         - 选择一个词替换为反差词
-        - 或插入一个反常识的短句
+        - 插入反常识的短句
         """
-        # 替换核心动词/名词为反向
         current = text
 
-        # 简单替换：普通词汇 → 冷门/反常识词汇
+        # 反常识替换
         mapping = {
-            "必须": "或许不该",
-            "应该": "其实不一定",
-            "肯定": "也许恰恰相反",
-            "最好": "反而不该",
-            "所以": "然而有没有可能",
+            "必须": "或许不该", "应该": "其实不一定", "肯定": "也许恰恰相反",
+            "最好": "反而不该", "所以": "然而有没有可能", "一定": "未必",
+            "永远": "也许就这一次", "不可能": "说不定还真行", "很简单": "其实挺复杂",
+            "很明显": "仔细想想也不一定", "毫无疑问": "值得怀疑的是",
+            "正确": "未必正确", "错误": "也许恰恰是对的",
         }
         for src, dst in mapping.items():
-            if src in current:
-                if random.random() < 0.4:
-                    current = current.replace(src, dst, 1)
-                    break
+            if src in current and random.random() < 0.4:
+                current = current.replace(src, dst, 1)
+                break
 
         return current
 
@@ -114,9 +107,9 @@ class NoiseInjector:
             return base_prompt, []
 
         if noise_type == "auto":
-            if strength < 0.1:
+            if strength < 0.05:
                 noise_type = "gaussian"
-            elif strength < 0.2:
+            elif strength < 0.15:
                 noise_type = "poisson"
             else:
                 noise_type = "impulse"
