@@ -36,7 +36,7 @@ Requires [Inno Setup 6](https://jrsoftware.org/isinfo.php)
 1. Run `build_exe.bat` first
 2. Open `installer.iss` in Inno Setup
 3. Menu: Build → Compile
-4. Output to `installer/Hedera_0.7.0_Setup.exe`
+4. Output to `installer/Hedera_0.8.1_Setup.exe`
 
 The installer provides:
 - Custom install path
@@ -65,7 +65,7 @@ Visit `http://localhost:36313` to chat.
 
 | Item | Value |
 |------|-------|
-| Version | 0.7.0 |
+| Version | 0.8.1 |
 | Python | 3.10+ |
 | Packager | PyInstaller 6.x |
 | Single file size | ~30-50 MB |

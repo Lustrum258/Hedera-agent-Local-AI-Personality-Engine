@@ -34,7 +34,9 @@ Hedera is a personality-driven lightweight AI Agent framework built on Python's 
 | **Skill System** | YAML/Markdown-based lightweight skill definitions |
 | **Plugin System** | Extensible tool plugin architecture |
 | **CLI Interface** | `hedera chat` for terminal-based interaction |
+| **WebUI** | Modern glassmorphism UI with custom dropdowns, animations, i18n (9 languages) |
 | **Zero-Dependency Server** | Built on Python's `http.server`, no framework needed |
+| **Harness System** | Testing, security, monitoring, and evaluation framework |
 
 ---
 
@@ -149,6 +151,43 @@ Interactive commands:
 | `/list` | List sessions |
 | `/config` | View/edit config |
 | `/help` | Show help |
+
+---
+
+## Harness System
+
+Hedera includes a comprehensive testing, security, monitoring, and evaluation framework.
+
+### Quick Start
+
+```bash
+# Initialize test suite template
+hedera harness init
+
+# Run tests
+hedera harness run -f harness_tests.json
+
+# Evaluate response quality
+hedera harness eval -m "你好" -r "你好，我是冬青"
+
+# Execute code in sandbox
+hedera harness sandbox -c "print('Hello')"
+
+# Generate report
+hedera harness report -f html
+```
+
+### Components
+
+| Component | Description |
+|-----------|-------------|
+| **Test Runner** | Automated testing of Agent behavior, tool calls, persona consistency |
+| **Evaluator** | Standardized evaluation of response quality, persona, safety |
+| **Monitor** | Runtime monitoring, tracing, replay of Agent decisions |
+| **Enhanced Sandbox** | Security sandbox with policy levels (strict/moderate/permissive) |
+| **Reporter** | Report generation in JSON/Markdown/HTML formats |
+
+For detailed documentation, see [HARNESS.md](HARNESS.md).
 
 ---
 

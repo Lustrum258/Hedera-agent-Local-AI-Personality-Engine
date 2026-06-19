@@ -1,4 +1,4 @@
-﻿"""
+"""
 Hedera CLI — 命令行入口
 
 用法：
@@ -57,12 +57,29 @@ def cmd_init(args):
 
 def cmd_serve(args):
     """hedera serve [-c config_path]"""
-    from hedera.server.http import run_server
+    # 初始化安全组件
+    from hedera.core.init import init_security, cleanup_security
+    from hedera.config import get_data_dir, load_config
+    
     config_path = args.config or os.path.join(os.getcwd(), "config.yaml")
     if not os.path.exists(config_path):
         print(f"! 配置未找到: {config_path}")
         print(f"  运行 'hedera init' 生成配置，或指定 -c <路径>")
         sys.exit(1)
+    
+    # 加载配置并获取数据目录
+    config = load_config(config_path)
+    data_dir = get_data_dir(config)
+    
+    # 初始化安全组件
+    init_security(data_dir)
+    
+    # 注册清理函数
+    import atexit
+    atexit.register(cleanup_security)
+    
+    # 启动服务器
+    from hedera.server.http import run_server
     run_server(config_path)
 
 
@@ -96,6 +113,13 @@ def main():
     p_chat.add_argument("cmd", nargs="?", help="直接执行命令")
     p_chat.add_argument("cmd_args", nargs="*", help="命令参数")
 
+    # harness
+    p_harness = sub.add_parser("harness", help="测试与评估框架")
+    p_harness.add_argument("harness_cmd", nargs="?", default=None,
+                          choices=["run", "eval", "monitor", "sandbox", "report", "init"],
+                          help="harness 子命令")
+    p_harness.add_argument("harness_args", nargs="*", help="子命令参数")
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -116,6 +140,12 @@ def main():
             cmd=args.cmd,
             cmd_args=args.cmd_args or [],
         )
+    elif args.command == "harness":
+        from hedera.harness.cli import main as harness_main
+        sys.argv = ["hedera harness"] + (args.harness_args or [])
+        if args.harness_cmd:
+            sys.argv.insert(1, args.harness_cmd)
+        harness_main()
     else:
         parser.print_help()
 

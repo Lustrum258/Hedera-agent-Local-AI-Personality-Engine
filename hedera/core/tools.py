@@ -13,6 +13,13 @@ from hedera.core.sanitizer import (
     validate_read_path, validate_write_path,
     validate_url, run_plugin_safe,
 )
+from hedera.core.constants import (
+    DEFAULT_TIMEOUT, MAX_TIMEOUT, SHELL_TIMEOUT, PYTHON_TIMEOUT,
+    MAX_OUTPUT_LENGTH, TOOL_RESPONSE_MAX, TOOL_RESPONSE_DEFAULT,
+    BLOCKED_PYTHON_CALLS, BLOCKED_SHELL_COMMANDS,
+)
+from hedera.core.code_checker import check_python_code_safety, CodeSecurityError
+from hedera.core.sandbox import execute_in_sandbox, cleanup_sandboxes
 
 # ─── 并发锁 ───────────
 _tools_lock = threading.Lock()
@@ -114,7 +121,11 @@ def _create_download_file(filename: str, content: str, server_url: str = "") -> 
 
 
 
-def _exec_shell(cmd: str, timeout: int = 120) -> dict:
+def _exec_shell(cmd: str, timeout: int = SHELL_TIMEOUT) -> dict:
+    """执行 Shell 命令，使用常量配置的超时时间"""
+    # 限制超时范围
+    timeout = min(max(timeout, 1), MAX_TIMEOUT)
+    
     # 输入校验
     validation = validate_shell_command(cmd, timeout)
     if validation is not None:
@@ -465,6 +476,51 @@ def call_tool(name: str, args: dict = None) -> dict:
     except Exception as e:
         METRICS.record_tool_call(name, success=False, latency=_timer.elapsed())
         return {"success": False, "error": str(e)}
+
+
+def call_tools_parallel(calls: list[dict], max_workers: int = 4) -> list[dict]:
+    """
+    并行执行多个工具调用。
+    calls: [{"name": str, "args": dict, "call_id": str}, ...]
+    返回: [{"call_id": str, "name": str, "args": dict, "result": dict}, ...]
+    按调用顺序返回结果。
+    """
+    if not calls:
+        return []
+    if len(calls) == 1:
+        c = calls[0]
+        result = call_tool(c["name"], c.get("args"))
+        return [{"call_id": c.get("call_id", ""), "name": c["name"], "args": c.get("args", {}), "result": result}]
+
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    results_map = {}
+
+    def _exec(idx, call):
+        result = call_tool(call["name"], call.get("args"))
+        return idx, call, result
+
+    with ThreadPoolExecutor(max_workers=min(max_workers, len(calls))) as executor:
+        futures = {executor.submit(_exec, i, c): i for i, c in enumerate(calls)}
+        for future in as_completed(futures):
+            try:
+                idx, call, result = future.result()
+                results_map[idx] = {
+                    "call_id": call.get("call_id", ""),
+                    "name": call["name"],
+                    "args": call.get("args", {}),
+                    "result": result,
+                }
+            except Exception as e:
+                idx = futures[future]
+                call = calls[idx]
+                results_map[idx] = {
+                    "call_id": call.get("call_id", ""),
+                    "name": call["name"],
+                    "args": call.get("args", {}),
+                    "result": {"success": False, "error": str(e)},
+                }
+
+    return [results_map[i] for i in sorted(results_map.keys())]
 
 
 def _grep_files(pattern: str, path: str = ".", include: str = "", max_results: int = 50, context: int = 0) -> dict:
@@ -953,16 +1009,34 @@ def _clear_cache(target: str = "all") -> dict:
 
 
 
-def _run_python(code: str, timeout: int = 120) -> dict:
+def _run_python(code: str, timeout: int = PYTHON_TIMEOUT, use_sandbox: bool = True) -> dict:
     """Run Python code in a temp file with proper error handling.
-    Runs in workspace directory by default."""
+    Runs in workspace directory by default.
+    
+    使用 AST 解析进行严格的安全检查，防止代码注入和危险操作。
+    支持沙箱隔离执行。
+    """
+    # 限制超时范围
+    timeout = min(max(timeout, 1), MAX_TIMEOUT)
+    
+    # 使用 AST 解析器进行严格的安全检查
+    is_safe, violations = check_python_code_safety(code)
+    if not is_safe:
+        return {
+            "success": False,
+            "error": f"安全限制: 代码包含危险操作\n" + "\n".join(f"  - {v}" for v in violations)
+        }
+    
+    # 使用沙箱执行
+    if use_sandbox:
+        try:
+            return execute_in_sandbox(code, "python", timeout, use_sandbox=True)
+        except Exception as e:
+            # 沙箱执行失败，回退到普通执行
+            pass
+    
+    # 普通执行（不使用沙箱）
     import tempfile
-    # 校验代码安全性（阻止危险模块和系统调用）
-    code_lower = code.lower()
-    for blocked in ["os.system", "subprocess.call", "subprocess.run", "subprocess.Popen",
-                    "shutil.rmtree", "os.remove", "os.unlink", "eval(", "exec("]:
-        if blocked in code_lower:
-            return {"success": False, "error": f"安全限制: 代码包含 '{blocked}'，已阻止执行"}
     tmp = None
     try:
         tmp = tempfile.NamedTemporaryFile(
@@ -1050,6 +1124,8 @@ def _generate_image(prompt: str, size: str = "") -> dict:
     根据文本描述生成图像。
     配置在 config.yaml 的 image_gen 节设置。
     """
+    import base64 as _b64
+    import urllib.request
     cfg = _IMAGE_GEN_CONFIG or {}
     if not cfg.get("enabled", True):
         return {"success": False, "error": "图像生成未启用，请在 config.yaml 中配置 image_gen"}
@@ -1131,7 +1207,6 @@ def _generate_image(prompt: str, size: str = "") -> dict:
 
         if content:
             # 从 content 提取 HTTP 图片 URL 和 base64 data URI
-            import re
             http_urls = re.findall(r'https?://[^\s"<>]+(?:\.png|\.jpg|\.jpeg|\.gif|\.webp)', content)
             for u in http_urls:
                 images.append(u)
@@ -1157,7 +1232,6 @@ def _generate_image(prompt: str, size: str = "") -> dict:
                 try:
                     if img_url.startswith("data:"):
                         # base64 data URI → 解码存本地
-                        import base64 as _b64
                         raw_b64 = img_url.split(",", 1)[1].strip()
                         # 去掉可能存在的换行和空白
                         raw_b64 = raw_b64.replace("\n", "").replace("\r", "").replace(" ", "")
@@ -1170,7 +1244,6 @@ def _generate_image(prompt: str, size: str = "") -> dict:
                         elif mtype == "gif": ext = ".gif"
                         elif mtype == "webp": ext = ".webp"
                     else:
-                        import urllib.request
                         img_resp = urllib.request.urlopen(img_url, timeout=30)
                         img_data = img_resp.read()
                         ext = os.path.splitext(urllib.parse.urlparse(img_url).path)[1] or ".png"

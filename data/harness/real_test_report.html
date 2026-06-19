@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hedera Harness 真实 API 测试报告</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        .header { background: #2c3e50; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .card h3 { margin-top: 0; color: #2c3e50; }
+        .metric { font-size: 2em; font-weight: bold; color: #3498db; }
+        .passed { color: #27ae60; }
+        .failed { color: #e74c3c; }
+        .section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .section h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background: #f8f9fa; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; }
+        .badge-passed { background: #d4edda; color: #155724; }
+        .badge-failed { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Hedera Harness 真实 API 测试报告</h1>
+        <p>生成时间: 2026-06-14T22:39:33.172567</p>
+    </div>
+
+    <div class="summary">
+        <div class="card">
+            <h3>总测试数</h3>
+            <div class="metric">5</div>
+        </div>
+        <div class="card">
+            <h3>通过</h3>
+            <div class="metric passed">5</div>
+        </div>
+        <div class="card">
+            <h3>失败</h3>
+            <div class="metric failed">0</div>
+        </div>
+        <div class="card">
+            <h3>通过率</h3>
+            <div class="metric">100.0%</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>测试概览</h2>
+        <div><h3>测试分类统计
+<p></p>
+<ul>
+<li>**general**: 5/5 (100.0%)</li>
+</ul></div>
+    </div>
+
+    <div class="section">
+        <h2>测试详情</h2>
+        <div><h3>测试结果列表
+<p></p>
+<p>#<h3>✅ 聊天模式 - 问候</p>
+<ul>
+<li>**ID**: real_01</li>
+<li>**状态**: passed</li>
+<li>**延迟**: 6803ms</li>
+</ul>
+<p></p>
+<p>#<h3>✅ 聊天模式 - 闲聊</p>
+<ul>
+<li>**ID**: real_02</li>
+<li>**状态**: passed</li>
+<li>**延迟**: 3338ms</li>
+</ul>
+<p></p>
+<p>#<h3>✅ 聊天模式 - 态度</p>
+<ul>
+<li>**ID**: real_03</li>
+<li>**状态**: passed</li>
+<li>**延迟**: 8305ms</li>
+</ul>
+<p></p>
+<p>#<h3>✅ 代码模式 - Python</p>
+<ul>
+<li>**ID**: real_04</li>
+<li>**状态**: passed</li>
+<li>**延迟**: 5286ms</li>
+</ul>
+<p></p>
+<p>#<h3>✅ 知识模式 - 概念</p>
+<ul>
+<li>**ID**: real_05</li>
+<li>**状态**: passed</li>
+<li>**延迟**: 5689ms</li>
+</ul>
+<p></p></div>
+    </div>
+
+    <div class="section">
+        <h2>质量评估</h2>
+        <div><h3>评估摘要
+<p></p>
+<ul>
+<li>**平均分数**: 0.88</li>
+<li>**评估用例数**: 5</li>
+</ul>
+<p></p>
+<h3>等级分布
+<p></p>
+<ul>
+<li>**A**: 2 个</li>
+<li>**B**: 3 个</li>
+</ul>
+<p></p>
+<h3>指标详情
+<p></p>
+<ul>
+<li>**relevance**: 0.95</li>
+<li>**coherence**: 1.00</li>
+<li>**safety**: 1.00</li>
+<li>**persona_consistency**: 0.84</li>
+<li>**response_quality**: 0.74</li>
+<li>**latency**: 0.44</li>
+</ul></div>
+    </div>
+
+    <div class="section">
+        <h2>追踪分析</h2>
+        <div><h3>追踪摘要
+<p></p>
+<ul>
+<li>**追踪 ID**: 4a495759-2bf</li>
+<li>**总事件数**: 15</li>
+<li>**总耗时**: 29422ms</li>
+</ul>
+<p></p>
+<h3>事件分布
+<p></p>
+<ul>
+<li>**EventType.MESSAGE_IN**: 5</li>
+<li>**EventType.API_CALL**: 5</li>
+<li>**EventType.MESSAGE_OUT**: 5</li>
+</ul></div>
+    </div>
+
+    <div class="section">
+        <h2>改进建议</h2>
+        <div><p>所有测试通过，无改进建议。</p></div>
+    </div>
+
+</body>
+</html>

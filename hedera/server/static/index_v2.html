@@ -8,163 +8,239 @@
 <link rel="icon" href="/icon.png" type="image/png" sizes="256x256">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#0b0b10;--surface:#16161f;--border:#232336;--text:#dedee8;--dim:#787890;--dim-bg:#1a1a28;--accent:#6c8c6c;--accent2:#4a6a4a;--accent3:#2a3a2a;--msg-bot:#16161f;--msg-user:#1a2626;--radius:12px;--sbw:320px;--font:-apple-system,'PingFang SC','Noto Sans SC',system-ui,sans-serif;--mono:'Cascadia Code','JetBrains Mono','Fira Code','Consolas','DejaVu Sans Mono',monospace}
+:root{--bg:#0b0b10;--surface:#16161f;--border:#232336;--text:#dedee8;--dim:#787890;--dim-bg:#1a1a28;--accent:#6c8c6c;--accent2:#4a6a4a;--accent3:#2a3a2a;--danger:#d44;--danger-hover:#b33;--msg-bot:#16161f;--msg-user:#1a2626;--radius:12px;--sbw:320px;--font:-apple-system,'PingFang SC','Noto Sans SC',system-ui,sans-serif;--mono:'Cascadia Code','JetBrains Mono','Fira Code','Consolas','DejaVu Sans Mono',monospace;--glass:rgba(22,22,31,.6);--glass-border:rgba(108,140,108,.08);--glow-sm:0 0 8px rgba(108,140,108,.08);--glow-md:0 0 16px rgba(108,140,108,.12);--glow-lg:0 0 30px rgba(108,140,108,.15)}
 body{background:var(--bg);color:var(--text);font-family:var(--font);height:100dvh;display:flex;overflow:hidden}
+body::before{content:'';position:fixed;inset:0;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.03'/%3E%3C/svg%3E");pointer-events:none;z-index:9999;opacity:.4}
 
 /* ── 关键帧 ── */
 @keyframes fadeSlideIn{0%{opacity:0;transform:translateY(10px) scale(.97)}100%{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
 @keyframes dotPulse{0%,80%,100%{transform:scale(.6);opacity:.3}40%{transform:scale(1);opacity:1}}
 @keyframes breathe{0%,100%{box-shadow:0 0 4px #6c8}50%{box-shadow:0 0 12px #6c8,0 0 24px #6c84}}
-@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
-@keyframes slideIn{0%{transform:translateX(-100%)}100%{transform:translateX(0)}}
-@keyframes slideOut{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
 @keyframes fadeIn{0%{opacity:0}100%{opacity:1}}
+@keyframes slideInLeft{0%{opacity:0;transform:translateX(-20px)}100%{opacity:1;transform:translateX(0)}}
+@keyframes slideInRight{0%{opacity:0;transform:translateX(20px)}100%{opacity:1;transform:translateX(0)}}
+@keyframes scaleIn{0%{opacity:0;transform:scale(.9)}100%{opacity:1;transform:scale(1)}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes glow{0%,100%{box-shadow:0 0 5px var(--accent)}50%{box-shadow:0 0 20px var(--accent),0 0 40px var(--accent3)}}
+@keyframes messageIn{0%{opacity:0;transform:translateY(20px) scale(.95)}100%{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes selectPulse{0%{transform:scale(1)}50%{transform:scale(1.02)}100%{transform:scale(1)}}
+@keyframes modalIn{0%{opacity:0;transform:scale(.9) translateY(20px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes ripple{0%{width:0;height:0;opacity:.5}100%{width:200%;height:200%;opacity:0}}
+@keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes borderGlow{0%,100%{border-color:rgba(108,140,108,.1)}50%{border-color:rgba(108,140,108,.25)}}
 
 /* ── 侧边栏 ── */
-#sidebar{width:var(--sbw);flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;z-index:20;transition:width .3s cubic-bezier(.4,0,.2,1),border-color .3s ease}
-#sidebar.collapsed{width:0;min-width:0;border-right-color:transparent}
-#sidebar .logo{padding:16px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
-#sidebar .logo svg{flex-shrink:0}
-#sidebar .logo h1{font-size:17px;font-weight:600}
-#sidebar .logo .close-sb{background:none;border:none;color:var(--dim);font-size:20px;cursor:pointer;padding:0;margin-left:auto;transition:color .2s}
-#sidebar .logo .close-sb:hover{color:var(--text)}
-.sb-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:0 0 10px}
-.sb-scroll::-webkit-scrollbar{width:5px}
-.sb-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+#sidebar{width:var(--sbw);flex-shrink:0;background:linear-gradient(180deg,#161620 0%,#13131c 40%,#101018 100%);border-right:1px solid rgba(108,140,108,.1);display:flex;flex-direction:column;overflow:hidden;z-index:20;transition:width .3s cubic-bezier(.4,0,.2,1),border-color .3s ease,box-shadow .3s ease;box-shadow:2px 0 30px rgba(108,140,108,.12),4px 0 40px rgba(0,0,0,.3);position:relative}
+#sidebar::after{content:'';position:absolute;top:0;right:0;bottom:0;width:1px;background:linear-gradient(180deg,transparent,rgba(108,140,108,.2),transparent);pointer-events:none}
+#sidebar.collapsed{width:0;min-width:0;border-right-color:transparent;box-shadow:none}
+#sidebar:not(.collapsed){box-shadow:4px 0 40px rgba(0,0,0,.35),2px 0 30px rgba(108,140,108,.12)}
+#sidebar .logo{padding:20px 22px;display:flex;align-items:center;gap:14px;border-bottom:1px solid rgba(108,140,108,.08);transition:all .4s;background:linear-gradient(135deg,rgba(108,140,108,.1) 0%,rgba(108,140,108,.02) 100%);position:relative;overflow:hidden}
+#sidebar .logo::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(108,140,108,.05),transparent);animation:gradientShift 8s ease infinite;background-size:200% 100%;pointer-events:none}
+#sidebar .logo::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(108,140,108,.4),transparent);pointer-events:none}
+#sidebar .logo:hover{background:linear-gradient(135deg,rgba(108,140,108,.15) 0%,rgba(108,140,108,.04) 100%)}
+#sidebar .logo svg{flex-shrink:0;transition:transform .4s cubic-bezier(.34,1.56,.64,1);filter:drop-shadow(0 0 6px rgba(108,140,108,.4))}
+#sidebar .logo:hover svg{transform:rotate(12deg) scale(1.15)}
+#sidebar .logo h1{font-size:17px;font-weight:500;letter-spacing:6px;text-transform:uppercase;background:linear-gradient(135deg,#6cbf7a 0%,#3a9d6a 40%,#1a7a4a 70%,#0d5a35 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;position:relative;animation:hederaPulse 4s ease-in-out infinite}
+@keyframes hederaPulse{0%,100%{filter:brightness(1) drop-shadow(0 0 0px transparent)}50%{filter:brightness(1.15) drop-shadow(0 0 8px rgba(58,157,106,.25))}}
+#sidebar .logo .close-sb{background:none;border:none;color:var(--dim);font-size:20px;cursor:pointer;padding:4px;margin-left:auto;transition:transform .3s cubic-bezier(.34,1.56,.64,1),color .2s}
+#sidebar .logo .close-sb:hover{color:var(--text);transform:rotate(90deg)}
+.sb-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:4px 0 10px;background:linear-gradient(180deg,rgba(108,140,108,.02) 0%,transparent 15%,transparent 85%,rgba(108,140,108,.02) 100%)}
+.sb-scroll::-webkit-scrollbar{width:4px}
+.sb-scroll::-webkit-scrollbar-track{background:transparent}
+.sb-scroll::-webkit-scrollbar-thumb{background:linear-gradient(180deg,rgba(108,140,108,.3) 0%,rgba(108,140,108,.1) 100%);border-radius:4px}
+.sb-scroll::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,rgba(108,140,108,.5) 0%,rgba(108,140,108,.2) 100%)}
 
 /* 侧边栏分区 */
-.sb-section{border-bottom:1px solid var(--border)}
-.sb-section .sb-head{padding:12px 18px;font-size:13px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none;transition:color .2s}
-.sb-section .sb-head:hover{color:var(--text)}
-.sb-section .sb-head .arrow{font-size:10px;transition:transform .2s}
+.sb-section{border-bottom:1px solid rgba(108,140,108,.06);position:relative}
+.sb-section::after{content:'';position:absolute;bottom:-1px;left:20px;right:20px;height:1px;background:linear-gradient(90deg,transparent,rgba(108,140,108,.15),transparent)}
+.sb-section .sb-head{padding:14px 20px;font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.8px;cursor:pointer;display:flex;align-items:center;gap:10px;user-select:none;transition:all .25s;background:linear-gradient(90deg,rgba(108,140,108,.02) 0%,transparent 100%);position:relative}
+.sb-section .sb-head:hover{color:var(--text);text-shadow:0 0 12px rgba(108,140,108,.4);background:linear-gradient(90deg,rgba(108,140,108,.06) 0%,transparent 100%)}
+.sb-section .sb-head .arrow{font-size:9px;transition:transform .3s cubic-bezier(.34,1.56,.64,1);color:var(--accent)}
 .sb-section .sb-head .arrow.open{transform:rotate(90deg)}
-.sb-section .sb-body{padding:0 14px;max-height:0;overflow:hidden;transition:max-height .3s cubic-bezier(.4,0,.2,1),padding .3s ease;opacity:0;transition:max-height .3s cubic-bezier(.4,0,.2,1),padding .3s ease,opacity .25s ease}
-.sb-section .sb-body.open{max-height:9999px;padding:0 14px 14px;opacity:1}
+.sb-section .sb-body{padding:0 16px;max-height:0;overflow:hidden;opacity:0;transition:max-height .4s cubic-bezier(.4,0,.2,1),padding .3s ease,opacity .3s ease}
+.sb-section .sb-body.open{max-height:9999px;padding:0 16px 16px;opacity:1}
 
 /* 会话列表 */
-.session-item{padding:10px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;transition:all .2s}
-.session-item:hover{border-color:var(--accent);background:var(--accent3)40}
+.session-item{padding:12px 14px;border:1px solid rgba(108,140,108,.06);border-radius:10px;margin-bottom:8px;cursor:pointer;transition:all .3s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;background:var(--glass);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.session-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--accent),#4a6a4a);transform:scaleY(0);transition:transform .3s cubic-bezier(.34,1.56,.64,1);border-radius:0 2px 2px 0}
+.session-item::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(108,140,108,.03) 0%,transparent 50%);opacity:0;transition:opacity .3s;pointer-events:none}
+.session-item:hover{border-color:rgba(108,140,108,.2);background:linear-gradient(135deg,rgba(42,58,42,.2) 0%,var(--glass) 100%);transform:translateX(4px) scale(1.02);box-shadow:var(--glow-md),4px 0 12px rgba(0,0,0,.15)}
+.session-item:hover::before{transform:scaleY(1)}
+.session-item:hover::after{opacity:1}
 .session-item .sline{display:flex;align-items:center;gap:8px}
-.session-item .sline .sname{font-size:14px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.session-item .sline .sbadge{font-size:10px;background:var(--accent);color:#fff;border-radius:4px;padding:2px 6px;display:none}
+.session-item .sline .sname{font-size:13px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;transition:color .2s}
+.session-item:hover .sline .sname{color:var(--text)}
+.session-item .sline .sbadge{font-size:10px;background:linear-gradient(135deg,var(--accent) 0%,#5a7a5a 100%);color:#fff;border-radius:4px;padding:2px 6px;display:none;animation:scaleIn .2s;font-weight:500}
 .session-item .sline .sbadge.show{display:inline}
 .session-item .sline .sdel{background:none;border:none;color:var(--dim);font-size:16px;cursor:pointer;padding:0 4px;opacity:0;transition:all .2s;line-height:1}
 .session-item:hover .sline .sdel{opacity:1}
-.session-item .sline .sdel:hover{color:#c66}
-.session-item .smeta{font-size:12px;color:var(--dim);margin-top:4px}
-.session-item.active{border-color:var(--accent);background:var(--accent3)80}
-.session-new{display:flex;gap:8px;margin-bottom:12px}
-.session-new input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;outline:none;font-family:var(--font);transition:border-color .2s}
-.session-new input:focus{border-color:var(--accent)}
-.session-new button{background:var(--accent);border:none;border-radius:8px;padding:8px 14px;color:#fff;font-size:13px;cursor:pointer;transition:all .2s;white-space:nowrap}
-.session-new button:hover{background:#7da07d}
-.empty-hint{color:var(--dim);font-size:13px;text-align:center;padding:16px}
+.session-item .sline .sdel:hover{color:#c66;transform:scale(1.2)}
+.session-item .smeta{font-size:11px;color:rgba(120,120,144,.8);margin-top:4px}
+.session-item.active{border-color:rgba(108,140,108,.25);background:linear-gradient(135deg,rgba(42,58,42,.35) 0%,rgba(26,26,40,.8) 100%);animation:borderGlow 3s ease infinite;box-shadow:var(--glow-lg),inset 0 0 25px rgba(108,140,108,.06)}
+.session-item.active::before{transform:scaleY(1)}
+.session-item.active::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(108,140,108,.5),transparent);animation:gradientShift 4s ease infinite;background-size:200% 100%}
+.session-new{display:flex;gap:8px;margin-bottom:14px}
+.session-new input{flex:1;background:rgba(11,11,16,.6);border:1px solid rgba(108,140,108,.1);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;font-family:var(--font);transition:all .25s;backdrop-filter:blur(4px)}
+.session-new input:focus{border-color:rgba(108,140,108,.3);box-shadow:0 0 0 2px rgba(108,140,108,.1),0 0 15px rgba(108,140,108,.08)}
+.session-new button{background:linear-gradient(135deg,var(--accent) 0%,#5a7a5a 100%);border:none;border-radius:8px;padding:8px 14px;color:#fff;font-size:13px;cursor:pointer;transition:all .2s;white-space:nowrap;position:relative;overflow:hidden;box-shadow:0 0 10px rgba(108,140,108,.1)}
+.session-new button:hover{background:linear-gradient(135deg,#7da07d 0%,#6c8c6c 100%);box-shadow:0 2px 12px rgba(108,140,108,.3),0 0 20px rgba(108,140,108,.15)}
+.session-new button::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);transform:translateX(-100%);transition:transform .4s}
+.session-new button:hover::after{transform:translateX(100%)}
+.empty-hint{color:rgba(120,120,144,.7);font-size:13px;text-align:center;padding:20px;font-weight:300}
   /* 自省选项卡 */
-  #reflectionTab .rtab{padding:10px 14px;font-size:13px;color:var(--dim);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;user-select:none}
-  #reflectionTab .rtab:hover{color:var(--text)}
-  #reflectionTab .rtab.active{color:var(--accent);border-bottom-color:var(--accent)}
-  .ref-item{padding:8px 10px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;word-break:break-all}
-  .ref-item .rtime{font-size:11px;color:var(--dim)}
-  .ref-item .rcontent{font-size:12px;margin-top:3px}
-  .ref-item .rqual{display:inline-block;font-size:10px;background:var(--accent3);color:var(--dim);border-radius:3px;padding:1px 5px;margin-left:4px}
-  .ref-refresh{font-size:12px;color:var(--dim);cursor:pointer;padding:6px 0;text-align:center;transition:color .2s}
-  .ref-refresh:hover{color:var(--accent)}
+  #reflectionTab .rtab{padding:12px 16px;font-size:12px;color:var(--dim);cursor:pointer;border-bottom:2px solid transparent;transition:all .25s;user-select:none;font-weight:500}
+  #reflectionTab .rtab:hover{color:var(--text);text-shadow:0 0 8px rgba(108,140,108,.3)}
+  #reflectionTab .rtab.active{color:var(--accent);border-bottom-color:var(--accent);text-shadow:0 0 10px rgba(108,140,108,.3)}
+  .ref-item{padding:10px 12px;border:1px solid rgba(108,140,108,.06);border-radius:8px;margin-bottom:8px;word-break:break-all;background:var(--glass);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);transition:all .2s}
+  .ref-item:hover{border-color:rgba(108,140,108,.15);box-shadow:var(--glow-sm)}
+  .ref-item .rtime{font-size:11px;color:rgba(120,120,144,.8);font-weight:500}
+  .ref-item .rcontent{font-size:12px;margin-top:4px;line-height:1.5;color:var(--text)}
+  .ref-item .rqual{display:inline-block;font-size:10px;background:rgba(108,140,108,.1);color:rgba(120,120,144,.9);border-radius:4px;padding:2px 6px;margin-left:6px;font-weight:500}
+  .ref-refresh{font-size:12px;color:var(--dim);cursor:pointer;padding:8px 0;text-align:center;transition:all .2s;font-weight:500}
+  .ref-refresh:hover{color:var(--accent);text-shadow:0 0 8px rgba(108,140,108,.3);transform:scale(1.05)}
   /* 人格切换 */
-  .profile-item{padding:10px 14px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;transition:all .2s}
-  .profile-item:hover{border-color:var(--accent);background:var(--accent3)40}
-  .profile-item.active{border-color:var(--accent2);background:var(--accent3)80;cursor:default}
-  .profile-item .pname{font-size:14px;font-weight:500}
-  .profile-item .pname .pbadge{font-size:10px;background:var(--accent);color:#fff;border-radius:4px;padding:2px 6px;margin-left:6px;display:none}
+  .profile-item{padding:12px 14px;border:1px solid rgba(108,140,108,.06);border-radius:10px;margin-bottom:8px;cursor:pointer;transition:all .3s cubic-bezier(.4,0,.2,1);background:var(--glass);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+  .profile-item:hover{border-color:rgba(108,140,108,.2);background:linear-gradient(135deg,rgba(42,58,42,.2) 0%,var(--glass) 100%);box-shadow:var(--glow-md);transform:scale(1.02)}
+  .profile-item.active{border-color:rgba(108,140,108,.25);background:linear-gradient(135deg,rgba(42,58,42,.35) 0%,rgba(26,26,40,.8) 100%);cursor:default;box-shadow:var(--glow-lg),inset 0 0 20px rgba(108,140,108,.05);animation:borderGlow 3s ease infinite}
+  .profile-item .pname{font-size:13px;font-weight:500;transition:color .2s}
+  .profile-item:hover .pname{color:var(--text)}
+  .profile-item .pname .pbadge{font-size:10px;background:linear-gradient(135deg,var(--accent) 0%,#5a7a5a 100%);color:#fff;border-radius:4px;padding:2px 6px;margin-left:6px;display:none;font-weight:500}
   .profile-item .pname .pbadge.show{display:inline}
-  .profile-item .ptag{font-size:12px;color:var(--dim);margin-top:3px}
+  .profile-item .ptag{font-size:11px;color:rgba(120,120,144,.85);margin-top:4px}
 
 /* 工具列表 */
-.tool-item{padding:10px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px}
-.tool-item .tname{font-size:13px;font-weight:500}
-.tool-item .tname .tag{font-size:11px;color:#6c8;margin-left:6px}
-.tool-item .tdesc{font-size:12px;color:var(--dim);margin-top:3px}
+.tool-item{padding:12px 14px;border:1px solid rgba(108,140,108,.06);border-radius:10px;margin-bottom:8px;transition:all .3s cubic-bezier(.4,0,.2,1);animation:fadeSlideIn .3s ease-out;background:var(--glass);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.tool-item:hover{border-color:rgba(108,140,108,.2);background:linear-gradient(135deg,rgba(42,58,42,.2) 0%,var(--glass) 100%);transform:translateX(3px) scale(1.02);box-shadow:var(--glow-md),3px 0 10px rgba(0,0,0,.1)}
+.tool-item .tname{font-size:13px;font-weight:500;color:var(--text);transition:color .2s}
+.tool-item .tname .tag{font-size:10px;color:var(--accent);margin-left:6px;animation:pulse 2s infinite;font-weight:500}
+.tool-item .tdesc{font-size:11px;color:rgba(120,120,144,.9);margin-top:4px}
 
 /* 设置 */
-.setting-row{margin-bottom:12px}
-.setting-row label{display:block;font-size:12px;color:var(--dim);margin-bottom:5px}
-.setting-row input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13px;outline:none;font-family:var(--font);transition:border-color .2s}
-.setting-row input:focus{border-color:var(--accent)}
-.setting-row .sbtn{background:var(--accent);border:none;border-radius:8px;padding:9px 18px;color:#fff;font-size:13px;cursor:pointer;transition:all .2s;margin-top:8px}
-.setting-row .sbtn:hover{background:#7da07d}
+.setting-row{margin-bottom:14px}
+.setting-row label{display:block;font-size:12px;color:var(--dim);margin-bottom:6px;font-weight:500}
+.setting-row input{width:100%;background:rgba(14,14,22,.8);border:1px solid rgba(108,140,108,.06);border-radius:10px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;font-family:var(--font);transition:all .25s}
+.setting-row input:focus{border-color:rgba(108,140,108,.25);box-shadow:var(--glow-sm)}
+.setting-row .sbtn{background:linear-gradient(135deg,var(--accent) 0%,#5a7a5a 100%);border:none;border-radius:8px;padding:9px 18px;color:#fff;font-size:13px;cursor:pointer;transition:all .2s;margin-top:8px;position:relative;overflow:hidden;box-shadow:0 0 10px rgba(108,140,108,.1)}
+.setting-row .sbtn:hover{background:linear-gradient(135deg,#7da07d 0%,#6c8c6c 100%);transform:translateY(-1px);box-shadow:0 2px 12px rgba(108,140,108,.3),0 0 20px rgba(108,140,108,.15)}
+.setting-row .sbtn::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);transform:translateX(-100%);transition:transform .4s}
+.setting-row .sbtn:hover::after{transform:translateX(100%)}
 .setting-row .sbtn.sec{background:var(--accent2);margin-left:8px}
 .setting-row .sbtn:disabled{opacity:.4;cursor:default}
 .setting-row .sstatus{font-size:12px;margin-top:5px}
 .setting-row .sstatus.ok{color:#6c8}
 .setting-row .sstatus.err{color:#c66}
 /* 设置 Tab */
-.cfg-tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:12px}
-.cfg-tab{flex:1;text-align:center;padding:9px 0;font-size:13px;color:var(--dim);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;user-select:none}
-.cfg-tab:hover{color:var(--text)}
-.cfg-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.cfg-tabs{display:flex;border-bottom:1px solid rgba(108,140,108,.08);margin-bottom:14px;gap:2px}
+.cfg-tab{flex:1;text-align:center;padding:10px 0;font-size:13px;color:var(--dim);cursor:pointer;border-bottom:2px solid transparent;transition:all .25s;user-select:none;position:relative;overflow:hidden;border-radius:6px 6px 0 0}
+.cfg-tab:hover{color:var(--text);background:rgba(108,140,108,.04)}
+.cfg-tab.active{color:var(--accent);background:rgba(108,140,108,.06)}
+.cfg-tab::after{content:'';position:absolute;bottom:0;left:50%;width:0;height:2px;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:all .3s;transform:translateX(-50%);opacity:.7}
+.cfg-tab.active::after{width:80%}
 .cfg-pane{display:none}
 .cfg-pane.active{display:block}
 /* 配置摘要 */
-.cfg-summary{padding:10px 12px;background:var(--dim-bg);border:1px solid var(--border);border-radius:8px;margin-bottom:12px;font-size:12px;line-height:1.7}
-.cfg-summary .cs-label{color:var(--dim)}
+.cfg-summary{padding:12px 14px;background:rgba(14,14,22,.7);border:1px solid rgba(108,140,108,.06);border-radius:10px;margin-bottom:14px;font-size:12px;line-height:1.8}
+.cfg-summary .cs-label{color:var(--dim);font-weight:500}
 .cfg-summary .cs-val{color:var(--text)}
 .cfg-summary .cs-ok{color:#6c8;font-size:11px}
-/* 预设卡片 */
-.preset-card{display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;transition:all .2s}
-.preset-card:hover{border-color:var(--accent)}
-.preset-card.active-preset{border-color:#6c8;background:var(--accent3)60}
-.preset-card .pc-name{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.preset-card .pc-badge{font-size:10px;background:#6c8;color:#fff;border-radius:4px;padding:2px 6px;display:none}
-.preset-card.active-preset .pc-badge{display:inline}
-.preset-card .pc-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--dim);cursor:pointer;transition:all .15s}
-.preset-card .pc-btn:hover{border-color:var(--accent);color:var(--text)}
-.preset-card .pc-btn.del{color:#c66;border-color:#c664}
-.preset-card .pc-btn.del:hover{background:#c662}
-.preset-card .pc-btn.apply{background:var(--accent);border-color:var(--accent);color:#fff}
-.preset-card .pc-btn.apply:hover{background:#7da07d}
+/* 预设管理 */
+.preset-section{margin-top:16px;padding-top:14px;border-top:1px solid rgba(108,140,108,.06)}
+.preset-section .ps-head{font-size:11px;color:var(--dim);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.preset-section .ps-head .ps-icon{font-size:13px}
+.preset-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.preset-select{flex:1;background:rgba(14,14,22,.8);border:1px solid rgba(108,140,108,.06);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;outline:none;font-family:var(--font);cursor:pointer;transition:all .25s;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23787890'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+.preset-select:hover{border-color:rgba(108,140,108,.2);box-shadow:var(--glow-sm)}
+.preset-select:focus{border-color:rgba(108,140,108,.25);box-shadow:var(--glow-md)}
+.preset-select option{background:var(--surface);color:var(--text)}
+.preset-select option[value=""]{color:var(--dim)}
+.preset-actions{display:flex;gap:6px;flex-shrink:0}
+.preset-actions .pa-btn{background:none;border:1px solid var(--border);border-radius:6px;padding:7px 10px;font-size:12px;color:var(--dim);cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:4px}
+.preset-actions .pa-btn:hover{border-color:var(--accent);color:var(--text);transform:translateY(-1px)}
+.preset-actions .pa-btn.apply{background:linear-gradient(135deg,var(--accent) 0%,#5a7a5a 100%);border-color:var(--accent);color:#fff;padding:7px 14px;position:relative;overflow:hidden;box-shadow:0 0 8px rgba(108,140,108,.1)}
+.preset-actions .pa-btn.apply:hover{background:linear-gradient(135deg,#7da07d 0%,#6c8c6c 100%);box-shadow:0 2px 10px rgba(108,140,108,.3),0 0 15px rgba(108,140,108,.15)}
+.preset-actions .pa-btn.apply::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);transform:translateX(-100%);transition:transform .4s}
+.preset-actions .pa-btn.apply:hover::after{transform:translateX(100%)}
+.preset-actions .pa-btn.del{color:#c66;border-color:transparent}
+.preset-actions .pa-btn.del:hover{border-color:#c66;background:rgba(204,102,102,0.1)}
+.preset-actions .pa-btn:disabled{opacity:.35;cursor:default;pointer-events:none}
+.preset-active-tag{font-size:10px;color:var(--accent);margin-left:4px;white-space:nowrap;animation:fadeIn .2s}
+.preset-save-row{display:flex;align-items:center;gap:8px}
+.preset-save-row input{flex:1;background:rgba(14,14,22,.8);border:1px solid rgba(108,140,108,.06);border-radius:10px;padding:8px 12px;color:var(--text);font-size:13px;outline:none;font-family:var(--font);transition:all .25s}
+.preset-save-row input:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent3)}
+.preset-save-row .ps-save{background:linear-gradient(135deg,var(--accent) 0%,#5a7a5a 100%);border:none;border-radius:8px;padding:8px 14px;color:#fff;font-size:12px;cursor:pointer;transition:all .15s;white-space:nowrap;position:relative;overflow:hidden;box-shadow:0 0 8px rgba(108,140,108,.1)}
+.preset-save-row .ps-save:hover{background:linear-gradient(135deg,#7da07d 0%,#6c8c6c 100%);box-shadow:0 2px 10px rgba(108,140,108,.3),0 0 15px rgba(108,140,108,.15)}
+.preset-save-row .ps-save::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);transform:translateX(-100%);transition:transform .4s}
+.preset-save-row .ps-save:hover::after{transform:translateX(100%)}
 /* 保存指示器 */
 .save-indicator{display:inline-block;font-size:12px;color:#6c8;opacity:0;transition:opacity .3s;margin-left:6px}
 .save-indicator.show{opacity:1}
 
 /* 侧边栏底部 */
-#sidebar .sb-foot{padding:10px 18px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;font-size:13px}
-#sidebar .sb-foot .sf-dot{width:8px;height:8px;border-radius:50%;transition:all .3s;flex-shrink:0}
-#sidebar .sb-foot .sf-dot.on{background:#6c8;box-shadow:0 0 6px #6c8;animation:breathe 2s ease-in-out infinite}
-#sidebar .sb-foot .sf-dot.off{background:#666}
-#sidebar .sb-foot .sf-label{color:var(--dim);flex-shrink:0}
-#sidebar .sb-foot .sf-ver{color:var(--dim);margin-left:auto;font-size:11px}
-#sidebar .sb-foot .sf-logout{background:none;border:1px solid var(--border);border-radius:6px;color:var(--dim);font-size:11px;cursor:pointer;padding:4px 8px;transition:all .2s;flex-shrink:0}
-#sidebar .sb-foot .sf-logout:hover{border-color:#c66;color:#c66}
-#sidebar .sb-foot .sf-clear{font-size:11px;color:var(--dim);cursor:pointer;padding:4px 6px;transition:all .2s;margin-left:auto}
-#sidebar .sb-foot .sf-clear:hover{color:#c66}
+#sidebar .sb-foot{padding:12px 20px;border-top:1px solid rgba(108,140,108,.08);display:flex;align-items:center;gap:8px;font-size:13px;background:linear-gradient(0deg,rgba(108,140,108,.04) 0%,transparent 100%);position:relative}
+#sidebar .sb-foot::before{content:'';position:absolute;top:-1px;left:20px;right:20px;height:1px;background:linear-gradient(90deg,transparent,rgba(108,140,108,.2),transparent)}
+#sidebar .sb-foot .sf-settings{background:none;border:1px solid rgba(108,140,108,.15);border-radius:8px;color:var(--dim);cursor:pointer;font-size:12px;padding:6px 12px;transition:all .25s;font-weight:500}
+#sidebar .sb-foot .sf-settings:hover{border-color:rgba(108,140,108,.4);color:var(--text);box-shadow:0 0 15px rgba(108,140,108,.15);background:rgba(108,140,108,.06)}
+#sidebar .sb-foot .sf-logout{background:none;border:1px solid rgba(108,140,108,.1);border-radius:8px;color:var(--dim);cursor:pointer;font-size:12px;padding:6px 12px;transition:all .25s}
+#sidebar .sb-foot .sf-logout:hover{border-color:rgba(198,102,102,.4);color:#c66;box-shadow:0 0 15px rgba(198,102,102,.15)}
+#sidebar .sb-foot .sf-ver{color:rgba(108,140,108,.5);margin-left:auto;font-size:11px;font-weight:500;letter-spacing:.3px;background:rgba(108,140,108,.06);padding:2px 8px;border-radius:4px}
 
 /* ── 主区域 ── */
-#main{flex:1;display:flex;flex-direction:column;min-width:0}
+#main{flex:1;display:flex;flex-direction:column;min-width:0;background:linear-gradient(180deg,rgba(11,11,16,.3) 0%,transparent 100%)}
 /* 顶栏 */
-#topbar{padding:8px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0;position:relative}
-#topbar .menu-btn{background:none;border:1px solid var(--border);border-radius:6px;color:var(--dim);cursor:pointer;font-size:16px;padding:2px 7px;line-height:1.4;transition:all .2s;z-index:1}
-#topbar .menu-btn:hover{border-color:var(--accent);color:var(--text)}
-#topbar #curSession{position:absolute;left:50%;transform:translateX(-50%);font-size:13px;color:var(--text);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;border-bottom:1px dashed var(--border);padding:0 4px 2px}
+#topbar{padding:10px 20px;border-bottom:1px solid rgba(108,140,108,.05);display:flex;align-items:center;gap:10px;flex-shrink:0;position:relative;z-index:10;box-shadow:0 2px 20px rgba(0,0,0,.12);background:linear-gradient(180deg,rgba(22,22,31,.7) 0%,rgba(16,16,22,.7) 100%);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+#topbar::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(108,140,108,.08),transparent)}
+#topbar .menu-btn{background:none;border:1px solid rgba(108,140,108,.1);border-radius:8px;color:var(--dim);cursor:pointer;font-size:16px;padding:5px 9px;line-height:1.4;transition:all .2s;z-index:1}
+#topbar .menu-btn:hover{border-color:rgba(108,140,108,.25);color:var(--text);box-shadow:var(--glow-sm)}
+#topbar #curSession{position:absolute;left:50%;transform:translateX(-50%);font-size:13px;color:var(--text);max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;padding:4px 12px;font-weight:500;background:rgba(108,140,108,.04);border-radius:6px;border:1px solid rgba(108,140,108,.06)}
   
 #topbar .spacer{flex:1;visibility:hidden}
-#ctxBar{display:none;font-size:11px;color:var(--dim);padding:2px 16px 0;text-align:right;gap:12px;align-items:center;justify-content:flex-end}
-#ctxBar .ctx-item{display:inline-flex;align-items:center;gap:3px}
-#ctxBar .ctx-dot{width:6px;height:6px;border-radius:50%;display:inline-block}
-#ctxBar .ctx-dot.green{background:#6c8}
-#ctxBar .ctx-dot.yellow{background:#ca0}
-#ctxBar .ctx-dot.red{background:#c66}
-.profile-select{background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:3px 6px;cursor:pointer;outline:none;font-family:var(--font);transition:border-color .2s}
-.profile-select:focus{border-color:var(--accent)}
-.profile-select option{background:var(--surface);color:var(--text)}
+#ctxBar{display:none;font-size:11px;color:var(--dim);padding:4px 20px 0;text-align:right;gap:14px;align-items:center;justify-content:flex-end;background:linear-gradient(0deg,transparent,rgba(108,140,108,.02))}
+#ctxBar .ctx-item{display:inline-flex;align-items:center;gap:4px;font-weight:500}
+#ctxBar .ctx-dot{width:6px;height:6px;border-radius:50%;display:inline-block;box-shadow:0 0 6px currentColor}
+#ctxBar .ctx-dot.green{background:#6c8;color:#6c8}
+#ctxBar .ctx-dot.yellow{background:#ca0;color:#ca0}
+#ctxBar .ctx-dot.red{background:#c66;color:#c66}
+.profile-select{background:var(--glass);border:1px solid rgba(108,140,108,.1);border-radius:8px;color:var(--text);font-size:12px;padding:6px 10px;cursor:pointer;outline:none;font-family:var(--font);transition:all .25s;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23787890'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:24px;background-color:var(--glass)}
+.profile-select:hover{border-color:rgba(108,140,108,.25);box-shadow:var(--glow-sm)}
+.profile-select:focus{border-color:rgba(108,140,108,.35);box-shadow:var(--glow-md)}
+.profile-select option{background:var(--surface);color:var(--text);padding:6px 10px}
+
+/* 自定义下拉 */
+.custom-select{position:relative;display:inline-block}
+.custom-select .cs-trigger{background:var(--glass);border:1px solid rgba(108,140,108,.1);border-radius:8px;color:var(--text);font-size:12px;padding:6px 28px 6px 10px;cursor:pointer;outline:none;font-family:var(--font);transition:all .25s;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);position:relative;overflow:hidden;white-space:nowrap;max-width:100%;text-overflow:ellipsis}
+.custom-select .cs-trigger::after{content:'';position:absolute;right:8px;top:50%;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid rgba(222,222,232,.5);transform:translateY(-50%);transition:transform .25s}
+.custom-select .cs-trigger:hover{border-color:rgba(108,140,108,.25);box-shadow:var(--glow-sm)}
+.custom-select.open .cs-trigger{border-color:rgba(108,140,108,.35);box-shadow:var(--glow-md)}
+.custom-select.open .cs-trigger::after{transform:translateY(-50%) rotate(180deg)}
+.custom-select .cs-menu{position:absolute;top:calc(100% + 4px);left:0;min-width:100%;background:linear-gradient(135deg,rgba(26,26,40,.98) 0%,rgba(30,30,48,.98) 100%);border:1px solid rgba(108,140,108,.15);border-radius:10px;padding:4px;opacity:0;visibility:hidden;transform:translateY(-8px);transition:all .25s cubic-bezier(.4,0,.2,1);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:var(--glow-md),0 8px 25px rgba(0,0,0,.3);z-index:100;max-height:200px;overflow-y:auto}
+.custom-select .cs-menu::-webkit-scrollbar{width:4px}
+.custom-select .cs-menu::-webkit-scrollbar-track{background:transparent}
+.custom-select .cs-menu::-webkit-scrollbar-thumb{background:linear-gradient(180deg,rgba(108,140,108,.2) 0%,rgba(108,140,108,.08) 100%);border-radius:4px}
+.custom-select.open .cs-menu{opacity:1;visibility:visible;transform:translateY(0)}
+.custom-select .cs-option{padding:8px 12px;font-size:12px;color:rgba(222,222,232,.75);cursor:pointer;border-radius:6px;transition:all .2s;white-space:nowrap}
+.custom-select .cs-option:hover{background:rgba(108,140,108,.12);color:var(--text)}
+.custom-select .cs-option.active{color:var(--text);background:rgba(108,140,108,.1)}
+.custom-select .cs-option.active::before{content:'';display:inline-block;width:5px;height:5px;background:var(--accent);border-radius:50%;margin-right:8px;box-shadow:0 0 8px var(--accent)}
 
 /* 聊天 */
-#chat{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:12px;scroll-behavior:smooth}
-#chat:empty::after{content:var(--empty-text,'冬青在等你。');display:block;text-align:center;color:var(--dim);padding:60px 16px;font-size:15px;animation:fadeSlideIn .6s ease-out}
-.msg{max-width:82%;padding:10px 14px;border-radius:var(--radius);line-height:1.65;font-size:14px;word-break:break-word;animation:fadeSlideIn .3s ease-out}
-.msg.me{background:var(--msg-user);border:1px solid var(--accent2);align-self:flex-end}
-.msg.bot{background:var(--msg-bot);border:1px solid var(--border);align-self:flex-start}
-.msg.bot.typing{padding:12px 18px;min-width:60px;display:flex;align-items:center;justify-content:center;gap:5px}
-.typing-dot{width:8px;height:8px;border-radius:50%;background:var(--dim);display:inline-block;animation:dotPulse 1.4s ease-in-out infinite}
+#chat{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:14px;scroll-behavior:smooth;background:linear-gradient(180deg,rgba(108,140,108,.01) 0%,transparent 20%,transparent 80%,rgba(108,140,108,.01) 100%)}
+#chat::-webkit-scrollbar{width:4px}
+#chat::-webkit-scrollbar-track{background:transparent}
+#chat::-webkit-scrollbar-thumb{background:linear-gradient(180deg,rgba(108,140,108,.2) 0%,rgba(108,140,108,.08) 100%);border-radius:4px}
+#chat::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,rgba(108,140,108,.35) 0%,rgba(108,140,108,.15) 100%)}
+#chat:empty::after{content:var(--empty-text,'冬青在等你。');display:block;text-align:center;color:var(--dim);padding:80px 16px;font-size:16px;font-weight:300;animation:fadeSlideIn .6s ease-out;text-shadow:0 0 30px rgba(108,140,108,.2);letter-spacing:.5px}
+.msg{max-width:82%;padding:12px 16px;border-radius:14px;line-height:1.7;font-size:14px;word-break:break-word;animation:messageIn .4s cubic-bezier(.34,1.56,.64,1);transition:transform .3s cubic-bezier(.4,0,.2,1),box-shadow .3s;position:relative}
+.msg:hover{transform:translateY(-2px);box-shadow:var(--glow-lg),0 8px 25px rgba(0,0,0,.2)}
+.msg.me{background:linear-gradient(135deg,rgba(26,38,38,.85) 0%,rgba(26,42,26,.85) 100%);border:1px solid rgba(74,106,74,.2);align-self:flex-end;box-shadow:var(--glow-md),3px 3px 15px rgba(0,0,0,.15);border-radius:14px 14px 4px 14px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.msg.me::before{content:'';position:absolute;inset:-1px;border-radius:inherit;background:linear-gradient(135deg,rgba(108,140,108,.1),transparent,rgba(108,140,108,.05));pointer-events:none}
+.msg.me::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(108,140,108,.3),transparent)}
+.msg.bot{background:linear-gradient(135deg,rgba(22,22,31,.85) 0%,rgba(26,26,40,.85) 100%);border:1px solid rgba(108,140,108,.1);align-self:flex-start;box-shadow:var(--glow-md),3px 3px 15px rgba(0,0,0,.15);border-radius:14px 14px 14px 4px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.msg.bot::before{content:'';position:absolute;inset:-1px;border-radius:inherit;background:linear-gradient(135deg,rgba(108,140,108,.08),transparent,rgba(108,140,108,.03));pointer-events:none}
+.msg.bot::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(108,140,108,.25),transparent)}
+.msg.bot.typing{padding:14px 20px;min-width:70px;display:flex;align-items:center;justify-content:center;gap:6px;background:linear-gradient(135deg,rgba(22,22,31,.95) 0%,rgba(26,26,40,.95) 100%)}
+.typing-dot{width:7px;height:7px;border-radius:50%;background:var(--accent);display:inline-block;animation:dotPulse 1.4s ease-in-out infinite;opacity:.6}
 .typing-dot:nth-child(2){animation-delay:.2s}
 .typing-dot:nth-child(3){animation-delay:.4s}
 
@@ -172,89 +248,144 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);height:100dv
 .msg p{margin:4px 0;min-height:1.4em;white-space:pre-wrap}
 .msg p:first-child{margin-top:0}
 .msg p:last-child{margin-bottom:0}
-.msg h1,.msg h2,.msg h3,.msg h4{margin:10px 0 4px;font-weight:600;line-height:1.4;color:var(--text)}
-.msg h1{font-size:1.25em;border-bottom:1px solid var(--border);padding-bottom:4px}
-.msg h2{font-size:1.15em;border-bottom:1px solid var(--border);padding-bottom:3px}
+.msg h1,.msg h2,.msg h3,.msg h4{margin:12px 0 6px;font-weight:600;line-height:1.4;color:var(--text)}
+.msg h1{font-size:1.25em;border-bottom:1px solid rgba(108,140,108,.15);padding-bottom:6px}
+.msg h2{font-size:1.15em;border-bottom:1px solid rgba(108,140,108,.1);padding-bottom:4px}
 .msg h3{font-size:1.1em}
 .msg h4{font-size:1.05em}
-.msg strong{font-weight:600}
-.msg em{font-style:italic}
-.msg ul,.msg ol{padding-left:1.5em;margin:6px 0}
-.msg li{margin:2px 0}
+.msg strong{font-weight:600;color:var(--text)}
+.msg em{font-style:italic;color:rgba(222,222,232,.9)}
+.msg ul,.msg ol{padding-left:1.5em;margin:8px 0}
+.msg li{margin:3px 0}
 .msg li>p{margin:0}
-.msg hr{border:none;border-top:1px solid var(--border);margin:10px 0}
-.msg blockquote{border-left:3px solid var(--accent);margin:8px 0;padding:4px 12px;color:var(--dim);background:var(--accent3)30;border-radius:0 6px 6px 0}
+.msg hr{border:none;border-top:1px solid rgba(108,140,108,.1);margin:12px 0}
+.msg blockquote{border-left:3px solid var(--accent);margin:10px 0;padding:8px 14px;color:var(--dim);background:linear-gradient(90deg,rgba(42,58,42,.15) 0%,transparent 100%);border-radius:0 8px 8px 0}
 .msg blockquote p{margin:2px 0}
-.msg code{font-family:var(--mono);background:var(--accent3);color:#d4d4e8;padding:1px 5px;border-radius:4px;font-size:.9em}
-.msg pre{background:#0e0e17;border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin:8px 0;overflow-x:auto;position:relative}
-.msg pre code{background:none;padding:0;font-size:.88em;line-height:1.55;tab-size:4;white-space:pre}
+.msg code{font-family:var(--mono);background:rgba(42,58,42,.3);color:#d4d4e8;padding:2px 6px;border-radius:5px;font-size:.88em;border:1px solid rgba(108,140,108,.1)}
+.msg pre{background:linear-gradient(135deg,rgba(14,14,23,.95) 0%,rgba(18,18,26,.95) 100%);border:1px solid rgba(108,140,108,.12);border-radius:10px;padding:12px 14px;margin:10px 0;overflow-x:auto;position:relative;box-shadow:0 0 20px rgba(108,140,108,.06),inset 0 0 15px rgba(0,0,0,.15)}
+.msg pre code{background:none;padding:0;font-size:.87em;line-height:1.6;tab-size:4;white-space:pre}
 /* 代码块头部（语言标签 + 复制按钮） */
-.msg .code-header{display:flex;align-items:center;justify-content:space-between;padding:4px 12px;background:var(--accent3);border-radius:8px 8px 0 0;border-bottom:1px solid var(--border);font-size:11px;color:var(--dim)}
-.msg .code-header .code-lang{font-weight:500;text-transform:lowercase}
-.msg .code-header .code-copy{background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--dim);font-size:10px;cursor:pointer;padding:3px 10px;transition:all .2s;font-family:var(--font);white-space:nowrap}
-.msg .code-header .code-copy:hover{color:var(--accent);border-color:var(--accent)}
-.msg .code-header .code-copy.copied{color:#6c8;border-color:#6c8}
+.msg .code-header{display:flex;align-items:center;justify-content:space-between;padding:6px 14px;background:linear-gradient(90deg,rgba(42,58,42,.2) 0%,rgba(26,26,40,.2) 100%);border-radius:10px 10px 0 0;border-bottom:1px solid rgba(108,140,108,.1);font-size:11px;color:var(--dim)}
+.msg .code-header .code-lang{font-weight:500;text-transform:lowercase;letter-spacing:.3px}
+.msg .code-header .code-copy{background:rgba(22,22,31,.6);border:1px solid rgba(108,140,108,.15);border-radius:5px;color:var(--dim);font-size:10px;cursor:pointer;padding:4px 12px;transition:all .2s;font-family:var(--font);white-space:nowrap}
+.msg .code-header .code-copy:hover{color:var(--accent);border-color:rgba(108,140,108,.3);box-shadow:0 0 8px rgba(108,140,108,.1)}
+.msg .code-header .code-copy.copied{color:#6c8;border-color:rgba(108,204,136,.3);box-shadow:0 0 8px rgba(108,204,136,.1)}
 .msg .code-header+.msg pre,.msg .code-header+pre{margin-top:0;border-top-left-radius:0;border-top-right-radius:0;border-top:none}
-.msg table{border-collapse:collapse;margin:8px 0;font-size:.92em;width:100%;display:block;overflow-x:auto}
-.msg th,.msg td{border:1px solid var(--border);padding:5px 10px;text-align:left}
-.msg th{background:var(--accent3)60;font-weight:600}
-.msg tr:nth-child(even){background:var(--accent3)20}
-.msg a{color:#7dab7d;text-decoration:none;border-bottom:1px solid var(--accent2)}
-.tool-indicator{background:var(--dim-bg);border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin:6px 0;font-size:12px;line-height:1.5;animation:fadeIn .2s ease}
-.tool-indicator .ti-icon{display:inline-block;width:18px}
-.tool-indicator .ti-name{font-weight:500}
-.tool-indicator .ti-doing{color:var(--accent);margin-left:6px;font-size:11px}
-.tool-indicator .ti-done{color:#6c8;margin-left:6px;font-size:11px}
-.tool-indicator .ti-err{color:#c66;margin-left:6px;font-size:11px}
+.msg table{border-collapse:collapse;margin:10px 0;font-size:.92em;width:100%;display:block;overflow-x:auto;border:1px solid rgba(108,140,108,.1);border-radius:8px}
+.msg th,.msg td{border:1px solid rgba(108,140,108,.08);padding:8px 12px;text-align:left}
+.msg th{background:linear-gradient(90deg,rgba(42,58,42,.2) 0%,rgba(26,26,40,.2) 100%);font-weight:600;color:var(--text)}
+.msg tr:nth-child(even){background:rgba(108,140,108,.02)}
+.msg tr:hover{background:rgba(108,140,108,.04)}
+.msg a{color:#7dab7d;text-decoration:none;border-bottom:1px solid rgba(108,140,108,.3);transition:all .2s}
+.msg a:hover{color:#9dcc9d;border-bottom-color:rgba(108,140,108,.5);text-shadow:0 0 8px rgba(108,140,108,.2)}
+.msg img{max-width:100%;border-radius:8px;margin:8px 0;box-shadow:0 0 15px rgba(0,0,0,.2)}
 
-.switch{position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0}
+/* 开关 */
+.switch{position:relative;display:inline-block;width:38px;height:20px;flex-shrink:0}
 .switch input{opacity:0;width:0;height:0}
-.switch .slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--border);transition:.3s;border-radius:20px}
-.switch .slider:before{position:absolute;content:"";height:14px;width:14px;left:3px;bottom:3px;background:#fff;transition:.3s;border-radius:50%}
-.switch input:checked+.slider{background:var(--accent)}
-.switch input:checked+.slider:before{transform:translateX(16px)}
-.msg a:hover{color:#9dcc9d}
-.msg img{max-width:100%;border-radius:6px;margin:6px 0}
+.switch .slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:rgba(108,140,108,.1);transition:.3s;border-radius:20px;border:1px solid rgba(108,140,108,.1)}
+.switch .slider:before{position:absolute;content:"";height:14px;width:14px;left:2px;bottom:2px;background:#fff;transition:.3s;border-radius:50%;box-shadow:0 0 4px rgba(0,0,0,.2)}
+.switch input:checked+.slider{background:linear-gradient(135deg,var(--accent) 0%,#5a7a5a 100%);border-color:rgba(108,140,108,.3);box-shadow:var(--glow-sm)}
+.switch input:checked+.slider:before{transform:translateX(18px)}
+
+/* 工具指示器 */
+.tool-indicator{background:linear-gradient(135deg,rgba(26,26,40,.7) 0%,rgba(22,22,31,.7) 100%);border:1px solid rgba(108,140,108,.12);border-radius:10px;padding:10px 14px;margin:8px 0;font-size:12px;line-height:1.5;animation:fadeIn .3s ease;box-shadow:0 0 15px rgba(108,140,108,.06);backdrop-filter:blur(4px)}
+.tool-indicator .ti-icon{display:inline-block;width:18px}
+.tool-indicator .ti-name{font-weight:500;color:var(--text)}
+.tool-indicator .ti-doing{color:var(--accent);margin-left:8px;font-size:11px;font-weight:500}
+.tool-indicator .ti-done{color:#6c8;margin-left:8px;font-size:11px;font-weight:500}
+.tool-indicator .ti-err{color:#c66;margin-left:8px;font-size:11px;font-weight:500}
 
 /* 输入 */
-footer{padding:12px 16px 16px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:flex-end;flex-shrink:0;background:var(--bg)}
-footer textarea{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;color:var(--text);font-family:var(--font);font-size:14px;resize:none;outline:none;min-height:40px;max-height:100px;transition:border-color .25s}
-footer textarea:focus{border-color:var(--accent)}
-footer button{background:var(--accent);border:none;border-radius:var(--radius);padding:10px 18px;color:#fff;font-size:14px;cursor:pointer;height:40px;transition:all .2s}
-footer button:hover:not(:disabled){background:#7da07d;transform:translateY(-1px)}
-footer button:active:not(:disabled){transform:translateY(0)}
+footer{padding:14px 20px 18px;border-top:1px solid rgba(108,140,108,.06);display:flex;gap:10px;align-items:flex-end;flex-shrink:0;background:linear-gradient(0deg,rgba(11,11,16,.95) 0%,rgba(16,16,22,.95) 100%);transition:all .2s;box-shadow:0 -4px 25px rgba(0,0,0,.15);position:relative}
+footer::before{content:'';position:absolute;top:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(108,140,108,.12),transparent)}
+footer textarea{flex:1;background:var(--glass);border:1px solid rgba(108,140,108,.1);border-radius:14px;padding:12px 16px;color:var(--text);font-family:var(--font);font-size:14px;resize:none;outline:none;min-height:44px;max-height:100px;transition:all .3s cubic-bezier(.4,0,.2,1);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+footer textarea:focus{border-color:rgba(108,140,108,.3);box-shadow:var(--glow-md),0 0 30px rgba(108,140,108,.1),inset 0 0 15px rgba(108,140,108,.03)}
+footer button{background:linear-gradient(135deg,var(--accent) 0%,#5a7a5a 100%);border:none;border-radius:var(--radius);padding:10px 18px;color:#fff;font-size:14px;cursor:pointer;height:40px;transition:all .2s cubic-bezier(.4,0,.2,1);position:relative;overflow:hidden;box-shadow:0 0 10px rgba(108,140,108,.1)}
+footer button:hover:not(:disabled){background:linear-gradient(135deg,#7da07d 0%,#6c8c6c 100%);transform:translateY(-1px);box-shadow:0 2px 12px rgba(108,140,108,.3),0 0 20px rgba(108,140,108,.15)}
+footer button:active:not(:disabled){transform:translateY(1px) scale(.98)}
 footer button:disabled{opacity:.4;cursor:default}
+footer button::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);transform:translateX(-100%);transition:transform .4s}
+footer button:hover:not(:disabled)::after{transform:translateX(100%)}
 
 footer #attachBtn{background:var(--accent);border:none;width:36px;padding:0}
 footer #attachBtn:hover:not(:disabled){background:#7da07d;transform:translateY(-1px)}
 
 /* 文件预览区 */
-#filePreview{display:none;padding:8px 16px;background:var(--surface);border-top:1px solid var(--border);flex-wrap:wrap;gap:6px}
+#filePreview{display:none;padding:10px 20px;background:linear-gradient(0deg,rgba(22,22,31,.8) 0%,rgba(16,16,22,.8) 100%);border-top:1px solid rgba(108,140,108,.06);flex-wrap:wrap;gap:8px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 #filePreview.show{display:flex}
-.file-chip{display:inline-flex;align-items:center;gap:4px;background:var(--dim-bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;color:var(--text);max-width:200px}
-.file-chip .fname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-chip{display:inline-flex;align-items:center;gap:6px;background:var(--glass);border:1px solid rgba(108,140,108,.1);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);max-width:220px;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);transition:all .2s}
+.file-chip:hover{border-color:rgba(108,140,108,.2);box-shadow:var(--glow-sm)}
+.file-chip .fname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
 .file-chip .fsize{color:var(--dim);font-size:10px;flex-shrink:0}
-.file-chip .fremove{background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px;padding:0 2px;line-height:1;flex-shrink:0}
+.file-chip .fremove{background:none;border:none;color:var(--dim);cursor:pointer;font-size:14px;padding:0 2px;line-height:1;flex-shrink:0;transition:color .2s}
 .file-chip .fremove:hover{color:#c66}
 
 /* 登录 */
-#login{position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center}
-.login-box{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:48px 40px 36px;width:360px;max-width:90vw;text-align:center;animation:fadeSlideIn .5s ease-out}
-.login-box .logo{font-size:42px;margin-bottom:8px;transition:transform .3s}
-.login-box .logo:hover{transform:rotate(15deg) scale(1.1)}
+#login{position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center;transition:opacity .3s;background:radial-gradient(ellipse at 30% 40%,rgba(108,140,108,.06) 0%,transparent 50%),radial-gradient(ellipse at 70% 60%,rgba(74,106,74,.04) 0%,transparent 50%),var(--bg)}
+.login-box{background:linear-gradient(135deg,rgba(22,22,31,.9) 0%,rgba(26,26,40,.9) 100%);border:1px solid rgba(108,140,108,.15);border-radius:24px;padding:52px 44px 40px;width:380px;max-width:90vw;text-align:center;animation:modalIn .5s cubic-bezier(.34,1.56,.64,1);position:relative;overflow:hidden;box-shadow:var(--glow-lg),0 25px 60px rgba(0,0,0,.5),inset 0 0 40px rgba(108,140,108,.03);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.login-box::before{content:'';position:absolute;inset:-1px;border-radius:inherit;background:linear-gradient(135deg,rgba(108,140,108,.15),transparent 40%,transparent 60%,rgba(108,140,108,.1));pointer-events:none;opacity:0;transition:opacity .6s}
+.login-box:hover::before{opacity:1}
+.login-box::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(108,140,108,.4),transparent)}
+.login-box:hover{box-shadow:0 0 80px rgba(108,140,108,.18),0 25px 60px rgba(0,0,0,.5),inset 0 0 50px rgba(108,140,108,.04)}
+.login-box .logo{font-size:44px;margin-bottom:10px;animation:float 4s ease-in-out infinite;filter:drop-shadow(0 0 12px rgba(108,140,108,.2))}
 .login-box h2{font-size:20px;font-weight:500}
 .login-box .sub{font-size:12px;color:var(--dim);margin-bottom:24px}
-.login-box input{display:block;width:100%;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 16px;color:var(--text);font-size:14px;outline:none;font-family:var(--font);transition:border-color .25s}
-.login-box input:focus{border-color:var(--accent)}
-.login-box button{width:100%;margin-top:10px;background:var(--accent);border:none;border-radius:10px;padding:12px;color:#fff;font-size:14px;cursor:pointer;transition:all .2s}
-.login-box button:hover{background:#7da07d;transform:translateY(-1px)}
-.login-box button:active{transform:translateY(0)}
+.login-box input{display:block;width:100%;background:var(--glass);border:1px solid rgba(108,140,108,.1);border-radius:10px;padding:12px 16px;color:var(--text);font-size:14px;outline:none;font-family:var(--font);transition:all .25s cubic-bezier(.4,0,.2,1);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.login-box input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent3),0 0 16px var(--accent3)50}
+.login-box button{width:100%;margin-top:10px;background:var(--accent);border:none;border-radius:8px;padding:12px;color:#fff;font-size:14px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.login-box button:hover{background:#7da07d;transform:translateY(-1px);box-shadow:0 2px 8px rgba(108,140,108,.25)}
+.login-box button::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.15),transparent);transform:translateX(-100%);transition:transform .4s}
+.login-box button:hover::after{transform:translateX(100%)}
 .login-box .err{color:#c66;font-size:13px;margin-top:10px;display:none;animation:fadeSlideIn .25s}
-.login-box .hint{font-size:12px;color:var(--dim);margin-top:12px}
+.login-box .hint{font-size:12px;color:var(--dim);margin-top:12px;min-height:20px}
 
 /* 遮罩 */
 #overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:10;display:none;opacity:0;transition:opacity .3s}
 #overlay.show{display:block;opacity:1}
+
+/* 设置弹窗 */
+#settingsModal{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center}
+#settingsModal.show{display:flex}
+#settingsModal .modal-bg{position:absolute;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);transition:opacity .3s}
+#settingsModal .modal-box{position:relative;background:linear-gradient(135deg,rgba(18,18,28,.98) 0%,rgba(22,22,34,.98) 100%);border:1px solid rgba(108,140,108,.08);border-radius:20px;width:560px;max-width:90vw;max-height:85vh;display:flex;flex-direction:column;animation:modalIn .35s cubic-bezier(.34,1.56,.64,1);box-shadow:0 0 20px rgba(108,140,108,.06),0 20px 50px rgba(0,0,0,.4);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+#settingsModal .modal-box::before{content:'';position:absolute;inset:-1px;border-radius:inherit;background:linear-gradient(135deg,rgba(108,140,108,.06),transparent 40%,transparent 60%,rgba(108,140,108,.04));pointer-events:none}
+#settingsModal .modal-box::after{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(108,140,108,.2),transparent)}
+#settingsModal .modal-head{display:flex;align-items:center;padding:18px 22px;border-bottom:1px solid rgba(108,140,108,.06);flex-shrink:0;background:linear-gradient(180deg,rgba(108,140,108,.02) 0%,transparent 100%)}
+#settingsModal .modal-head h2{flex:1;font-size:16px;font-weight:600;color:var(--text);background:linear-gradient(135deg,var(--text) 0%,rgba(222,222,232,.8) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+#settingsModal .modal-close{background:none;border:none;color:var(--dim);font-size:22px;cursor:pointer;padding:0 4px;transition:color .2s,transform .2s}
+#settingsModal .modal-close:hover{color:var(--text);transform:rotate(90deg)}
+#settingsModal .modal-body{flex:1;overflow-y:auto;padding:18px 22px}
+#settingsModal .modal-body::-webkit-scrollbar{width:4px}
+#settingsModal .modal-body::-webkit-scrollbar-track{background:transparent}
+#settingsModal .modal-body::-webkit-scrollbar-thumb{background:linear-gradient(180deg,rgba(108,140,108,.2) 0%,rgba(108,140,108,.08) 100%);border-radius:4px}
+#settingsModal .modal-foot{padding:16px 22px;border-top:1px solid rgba(108,140,108,.06);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:linear-gradient(0deg,rgba(108,140,108,.02) 0%,transparent 100%)}
+
+/* 自省 badge */
+.sb-head .sb-badges{margin-left:auto;display:flex;gap:6px;align-items:center}
+.sb-head .sb-badge{font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(108,140,108,.1);color:var(--dim);white-space:nowrap;font-weight:500;transition:all .2s}
+.sb-head .sb-badge.has-data{color:var(--accent);background:rgba(108,140,108,.15);box-shadow:0 0 8px rgba(108,140,108,.1)}
+
+/* 按钮工具类 */
+.sbtn.micro{padding:6px 14px;font-size:11px;margin-left:8px;background:rgba(74,106,74,.2);border:1px solid rgba(108,140,108,.15);border-radius:8px;color:var(--dim);cursor:pointer;transition:all .2s;font-weight:500}
+.sbtn.micro:hover{border-color:rgba(108,140,108,.3);color:var(--text);box-shadow:var(--glow-sm)}
+.sbtn.danger{background:transparent;border:1px solid rgba(221,68,68,.3);font-size:12px;color:var(--danger);padding:8px 16px;border-radius:8px;transition:all .2s;font-weight:500}
+.sbtn.danger:hover{background:rgba(221,68,68,.15);border-color:rgba(221,68,68,.5);box-shadow:0 0 15px rgba(221,68,68,.15)}
+
+/* 涟漪效果 */
+.ripple{position:relative;overflow:hidden}
+.ripple::before{content:'';position:absolute;top:50%;left:50%;width:0;height:0;border-radius:50%;background:rgba(255,255,255,.2);transform:translate(-50%,-50%);transition:width .3s,height .3s}
+.ripple:active::before{width:200%;height:200%}
+
+/* 加载动画 */
+.loading{display:inline-block;width:20px;height:20px;border:2px solid rgba(108,140,108,.1);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;filter:drop-shadow(0 0 4px rgba(108,140,108,.2))}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* 状态切换过渡 */
+.fade-enter{opacity:0;transform:translateY(10px)}
+.fade-enter-active{opacity:1;transform:translateY(0);transition:all .3s cubic-bezier(.4,0,.2,1)}
+.fade-exit{opacity:1;transform:translateY(0)}
+.fade-exit-active{opacity:0;transform:translateY(-10px);transition:all .3s cubic-bezier(.4,0,.2,1)}
 
 @media(max-width:720px){
   #sidebar{position:fixed;top:0;left:0;bottom:0;z-index:30;box-shadow:4px 0 20px rgba(0,0,0,.5);width:min(var(--sbw),85vw);transform:translateX(-100%);transition:transform .3s cubic-bezier(.4,0,.2,1)}
@@ -263,6 +394,26 @@ footer #attachBtn:hover:not(:disabled){background:#7da07d;transform:translateY(-
   .session-new select{max-width:100px;min-width:0}
   .session-new input{min-width:80px}
   .menu-btn{padding:6px 10px !important;font-size:18px !important}
+  #chat{padding:12px}
+  .msg{max-width:92%}
+  footer{padding:8px 12px 12px}
+  footer textarea{font-size:16px}
+  #settingsModal .modal-box{max-width:95vw;max-height:90vh}
+  #settingsModal .modal-body{padding:12px 14px}
+  .setting-row input{font-size:16px}
+}
+@media(max-width:480px){
+  :root{--radius:8px}
+  #topbar{padding:6px 10px}
+  #topbar #curSession{font-size:12px;max-width:160px}
+  .msg{padding:8px 10px;font-size:13px}
+  footer button{padding:8px 14px;font-size:13px;height:36px}
+  footer textarea{min-height:36px;max-height:80px;padding:8px 10px}
+  .login-box{padding:32px 24px 28px}
+  .login-box h2{font-size:18px}
+  .login-box input{padding:10px 14px;font-size:16px}
+  .cfg-tabs{gap:0}
+  .cfg-tab{font-size:12px;padding:8px 0}
 }
 </style>
 <script async src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -274,23 +425,23 @@ footer #attachBtn:hover:not(:disabled){background:#7da07d;transform:translateY(-
 <!-- 登录 -->
 <div id="login">
   <div class="login-box">
-    <div class="logo"><svg viewBox="0 0 512 512" width="48" height="48"><path d="M256 90 L300 200 L256 180 L212 200 Z" fill="#0F5B3C"/><path d="M256 90 L300 200 L256 180 L212 200 Z" transform="rotate(120, 256, 256)" fill="#0F5B3C"/><path d="M256 90 L300 200 L256 180 L212 200 Z" transform="rotate(240, 256, 256)" fill="#0F5B3C"/><circle cx="256" cy="256" r="36" fill="#A41623"/></svg></div>
-    <h2>常春藤</h2>
-    <div class="sub">Hedera · 冬青</div>
+    <div class="logo"><svg viewBox="0 0 512 512" width="48" height="48"><defs><linearGradient id="ivyGradL" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#3a9d6a"/><stop offset="50%" stop-color="#1a7a4a"/><stop offset="100%" stop-color="#0d5a35"/></linearGradient></defs><polygon points="256,60 200,160 140,160 180,220 120,320 210,260 256,380 302,260 392,320 332,220 372,160 312,160" fill="url(#ivyGradL)"/><polygon points="256,60 200,160 256,180 312,160" fill="#4db87a" opacity="0.5"/><polygon points="200,160 140,160 180,220 230,200" fill="#2d8a57" opacity="0.4"/><polygon points="312,160 372,160 332,220 282,200" fill="#2d8a57" opacity="0.4"/><polygon points="180,220 120,320 210,260" fill="#1a6b3e" opacity="0.3"/><polygon points="332,220 392,320 302,260" fill="#1a6b3e" opacity="0.3"/><line x1="256" y1="120" x2="256" y2="340" stroke="#0d4a2e" stroke-width="3" opacity="0.25"/><circle cx="256" cy="180" r="8" fill="#fff" opacity="0.15"/><circle cx="256" cy="240" r="6" fill="#fff" opacity="0.1"/></svg></div>
+    <h2 style="font-weight:500;letter-spacing:6px;text-transform:uppercase;background:linear-gradient(135deg,#6cbf7a 0%,#3a9d6a 40%,#1a7a4a 70%,#0d5a35 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">hedera</h2>
+    <div class="sub">personality-driven AI agent</div>
     <input type="password" id="pwd" data-i18n="pwdPlaceholder" placeholder="密码" autocomplete="off">
-    <button id="loginBtn" data-i18n="loginBtn">进入</button>
+    <button type="button" id="loginBtn" data-i18n="loginBtn">进入</button>
     <div class="err" id="loginErr"></div>
     <div class="hint" id="quoteLine"></div>
-    <div style="margin-top:8px"><a href="/docs" target="_blank" data-i18n="docLink" style="font-size:11px;color:var(--accent);text-decoration:none">📜 文档</a></div>
+    <div style="margin-top:8px"><a href="/docs" target="_blank" data-i18n="docLink" style="font-size:11px;color:var(--accent);text-decoration:none">文档</a></div>
   </div>
 </div>
 
 <!-- 侧边栏 -->
 <div id="sidebar" class="collapsed">
   <div class="logo">
-    <svg viewBox="0 0 512 512" width="20" height="20"><path d="M256 90 L300 200 L256 180 L212 200 Z" fill="#0F5B3C"/><path d="M256 90 L300 200 L256 180 L212 200 Z" transform="rotate(120, 256, 256)" fill="#0F5B3C"/><path d="M256 90 L300 200 L256 180 L212 200 Z" transform="rotate(240, 256, 256)" fill="#0F5B3C"/><circle cx="256" cy="256" r="36" fill="#A41623"/></svg>
-    <h1>常春藤</h1>
-    <button class="close-sb" id="closeSidebar">&times;</button>
+    <svg viewBox="0 0 512 512" width="20" height="20"><defs><linearGradient id="ivyGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#3a9d6a"/><stop offset="50%" stop-color="#1a7a4a"/><stop offset="100%" stop-color="#0d5a35"/></linearGradient></defs><polygon points="256,60 200,160 140,160 180,220 120,320 210,260 256,380 302,260 392,320 332,220 372,160 312,160" fill="url(#ivyGrad)"/><polygon points="256,60 200,160 256,180 312,160" fill="#4db87a" opacity="0.5"/><polygon points="200,160 140,160 180,220 230,200" fill="#2d8a57" opacity="0.4"/><polygon points="312,160 372,160 332,220 282,200" fill="#2d8a57" opacity="0.4"/><polygon points="180,220 120,320 210,260" fill="#1a6b3e" opacity="0.3"/><polygon points="332,220 392,320 302,260" fill="#1a6b3e" opacity="0.3"/><line x1="256" y1="120" x2="256" y2="340" stroke="#0d4a2e" stroke-width="3" opacity="0.25"/><circle cx="256" cy="180" r="8" fill="#fff" opacity="0.15"/><circle cx="256" cy="240" r="6" fill="#fff" opacity="0.1"/></svg>
+    <h1>hedera</h1>
+    <button type="button" class="close-sb" id="closeSidebar">&times;</button>
   </div>
   <div class="sb-scroll">
 
@@ -301,21 +452,21 @@ footer #attachBtn:hover:not(:disabled){background:#7da07d;transform:translateY(-
         <div class="session-new">
           <input type="text" id="newSessTitle" data-i18n="newSessPlaceholder" placeholder="名称（可选）" style="flex:1;min-width:0">
           <select id="newSessProfile" class="profile-select" style="flex-shrink:0"></select>
-          <button id="newSessBtn" data-i18n="newSessBtn">新建</button>
+          <button type="button" id="newSessBtn" data-i18n="newSessBtn">新建</button>
         </div>
-        <div id="sessList">加载中...</div>
+        <div id="sessList"></div>
       </div>
     </div>
 
     <!-- 工具 -->
     <div class="sb-section">
       <div class="sb-head" data-section="tools"><span class="arrow">&#9654;</span> <span data-i18n="sidebarTools">工具</span></div>
-      <div class="sb-body" id="sbTools"><div id="toolList" class="empty-hint">加载中...</div></div>
+      <div class="sb-body" id="sbTools"><div id="toolList" class="empty-hint"></div></div>
     </div>
 
     <!-- 自省 -->
     <div class="sb-section">
-      <div class="sb-head" data-section="reflection"><span class="arrow">&#9654;</span> <span data-i18n="sidebarReflection">自省</span></div>
+      <div class="sb-head" data-section="reflection"><span class="arrow">&#9654;</span> <span data-i18n="sidebarReflection">自省</span><span class="sb-badges" id="refBadges"><span class="sb-badge" id="badgeRef" title="反思">-</span><span class="sb-badge" id="badgeExp" title="蒸馏">-</span><span class="sb-badge" id="badgeRules" title="准则">-</span></span></div>
       <div class="sb-body" id="sbReflection" style="padding:0">
         <div id="reflectionTab" style="display:flex;border-bottom:1px solid var(--border)">
           <span class="rtab active" data-tab="reflog" data-i18n="tabReflog">反思</span>
@@ -323,7 +474,6 @@ footer #attachBtn:hover:not(:disabled){background:#7da07d;transform:translateY(-
           <span class="rtab" data-tab="rules" data-i18n="tabRules">准则</span>
         </div>
         <div id="reflectionContent" style="padding:8px 12px 12px;font-size:12px;min-height:80px">
-          <div class="empty-hint">加载中...</div>
         </div>
       </div>
     </div>
@@ -333,142 +483,178 @@ footer #attachBtn:hover:not(:disabled){background:#7da07d;transform:translateY(-
       <div class="sb-head" data-section="docs"><span class="arrow">&#9654;</span> <span data-i18n="sidebarDocs">文档</span></div>
       <div class="sb-body" id="sbDocs">
         <div style="padding:8px 12px 10px;font-size:12px;text-align:center">
-          <a href="/docs" target="_blank" style="color:var(--accent);text-decoration:none">📄 查看完整文档</a>
-        </div>
-      </div>
-    </div>
-
-    <!-- 设置 -->
-    <div class="sb-section">
-      <div class="sb-head" data-section="settings"><span class="arrow">&#9654;</span> <span data-i18n="sidebarSettings">设置</span></div>
-      <div class="sb-body" id="sbSettings">
-        <!-- 配置摘要 -->
-        <div class="cfg-summary" id="cfgSummary">加载中...</div>
-        <!-- Tab 栏 -->
-        <div class="cfg-tabs">
-          <div class="cfg-tab active" data-tab="llm">LLM</div>
-          <div class="cfg-tab" data-tab="img">图片</div>
-          <div class="cfg-tab" data-tab="tts">TTS</div>
-          <div class="cfg-tab" data-tab="search">搜索</div>
-          <div class="cfg-tab" data-tab="profile">人格</div>
-        </div>
-        <!-- LLM Tab -->
-        <div class="cfg-pane active" data-pane="llm">
-          <div class="setting-row">
-            <label>模型名称</label>
-            <input type="text" id="cfgModelName" placeholder="deepseek-chat">
-          </div>
-          <div class="setting-row">
-            <label>API 地址</label>
-            <input type="text" id="cfgModelEndpoint" placeholder="https://api.deepseek.com">
-          </div>
-          <div class="setting-row">
-            <label>API Key <span id="siModelKey" class="save-indicator">✓</span></label>
-            <input type="password" style="position:absolute;left:-9999px" tabindex="-1"><input type="password" id="cfgModelKey" placeholder="sk-..." autocomplete="new-password">
-          </div>
-          <div style="font-size:11px;color:var(--dim);margin-bottom:8px">预设
-            <input type="text" id="cfgPresetName" placeholder="预设名称" style="display:inline-block;width:120px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:3px 8px;color:var(--text);font-size:11px;outline:none;font-family:var(--font);margin-left:6px">
-            <button class="sbtn" style="padding:3px 10px;font-size:10px;margin:0 0 0 4px" onclick="savePreset('llm')">保存为预设</button>
-          </div>
-          <div id="presetListLlm"></div>
-        </div>
-        <!-- 图片 Tab -->
-        <div class="cfg-pane" data-pane="img">
-          <div class="setting-row">
-            <label>模型</label>
-            <input type="text" id="cfgImgModel" placeholder="dall-e-3">
-          </div>
-          <div class="setting-row">
-            <label>API 地址</label>
-            <input type="text" id="cfgImgEndpoint" placeholder="https://api.openai.com/v1/images/generations">
-          </div>
-          <div class="setting-row">
-            <label>API Key <span id="siImgKey" class="save-indicator">✓</span></label>
-            <input type="password" style="position:absolute;left:-9999px" tabindex="-1"><input type="password" id="cfgImgKey" placeholder="sk-..." autocomplete="new-password">
-          </div>
-          <div style="font-size:11px;color:var(--dim);margin-bottom:8px">预设
-            <input type="text" id="cfgPresetNameImg" placeholder="预设名称" style="display:inline-block;width:120px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:3px 8px;color:var(--text);font-size:11px;outline:none;font-family:var(--font);margin-left:6px">
-            <button class="sbtn" style="padding:3px 10px;font-size:10px;margin:0 0 0 4px" onclick="savePreset('img')">保存为预设</button>
-          </div>
-          <div id="presetListImg"></div>
-        </div>
-        <!-- TTS Tab -->
-        <div class="cfg-pane" data-pane="tts">
-          <div class="setting-row">
-            <label>模型</label>
-            <input type="text" id="cfgTtsModel" placeholder="tts-1">
-          </div>
-          <div class="setting-row">
-            <label>语音</label>
-            <input type="text" id="cfgTtsVoice" placeholder="alloy">
-          </div>
-          <div class="setting-row">
-            <label>API 地址</label>
-            <input type="text" id="cfgTtsEndpoint" placeholder="https://api.openai.com/v1/audio/speech">
-          </div>
-          <div class="setting-row">
-            <label>API Key <span id="siTtsKey" class="save-indicator">✓</span></label>
-            <input type="password" style="position:absolute;left:-9999px" tabindex="-1"><input type="password" id="cfgTtsKey" placeholder="sk-..." autocomplete="new-password">
-          </div>
-          <div class="setting-row">
-            <label style="display:flex;align-items:center;gap:8px">
-              <span>朗读开关</span>
-              <label class="switch"><input type="checkbox" id="cfgTtsToggle"><span class="slider"></span></label>
-            </label>
-          </div>
-          <div style="font-size:11px;color:var(--dim);margin-bottom:8px">预设
-            <input type="text" id="cfgPresetNameTts" placeholder="预设名称" style="display:inline-block;width:120px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:3px 8px;color:var(--text);font-size:11px;outline:none;font-family:var(--font);margin-left:6px">
-            <button class="sbtn" style="padding:3px 10px;font-size:10px;margin:0 0 0 4px" onclick="savePreset('tts')">保存为预设</button>
-          </div>
-          <div id="presetListTts"></div>
-        </div>
-        <!-- 搜索 Tab -->
-        <div class="cfg-pane" data-pane="search">
-          <div class="setting-row">
-            <label>Tavily API Key <span id="siTavilyKey" class="save-indicator">✓</span></label>
-            <input type="password" style="position:absolute;left:-9999px" tabindex="-1"><input type="password" id="cfgTavilyKey" placeholder="tvly-..." autocomplete="new-password">
-          </div>
-        </div>
-        <!-- 人格 Tab -->
-        <div class="cfg-pane" data-pane="profile">
-          <div style="font-size:12px;color:var(--dim);margin-bottom:10px">创建自定义人格</div>
-          <div class="setting-row">
-            <label>人格名称</label>
-            <input type="text" id="cfgProfileName" placeholder="如：小助手、老师、程序员">
-          </div>
-          <div class="setting-row">
-            <label>标签（用逗号分隔）</label>
-            <input type="text" id="cfgProfileTag" placeholder="如：温柔、专业、幽默">
-          </div>
-          <div class="setting-row">
-            <label>说话风格</label>
-            <textarea id="cfgProfileStyle" rows="3" placeholder="如：说话简洁，喜欢用短句，偶尔开玩笑" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:12px;outline:none;font-family:var(--font);resize:vertical"></textarea>
-          </div>
-          <div class="setting-row">
-            <label>核心准则</label>
-            <textarea id="cfgProfileRules" rows="3" placeholder="如：永远说实话，不做没把握的承诺" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:12px;outline:none;font-family:var(--font);resize:vertical"></textarea>
-          </div>
-          <div class="setting-row">
-            <button class="sbtn" id="cfgProfileCreate">创建人格</button>
-            <span id="cfgProfileStatus" class="sstatus" style="margin-left:8px"></span>
-          </div>
-          <div id="profileListSettings" style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
-            <div style="font-size:12px;color:var(--dim);margin-bottom:8px">已有自定义人格</div>
-            <div id="customProfileList">加载中...</div>
-          </div>
-        </div>
-        <!-- 底部 -->
-        <div class="setting-row" style="margin-top:10px;display:flex;align-items:center;justify-content:space-between">
-          <span id="cfgStatus" class="sstatus"></span>
-          <button class="sbtn" id="clearAllBtn" data-i18n="clearAll" style="background:#a33;font-size:11px;color:#fff">✖ 清除所有会话</button>
+          <a href="/docs" target="_blank" style="color:var(--accent);text-decoration:none">查看完整文档</a>
         </div>
       </div>
     </div>
 
   </div>
   <div class="sb-foot">
-    <button class="sf-logout" id="logoutBtn" data-i18n="logout">登出</button>
-    <span class="sf-ver">v0.7.0</span>
+    <button class="sf-settings" id="settingsBtn" type="button" title="设置" data-i18n="settingsBtn">设置</button>
+    <button class="sf-logout" id="logoutBtn" type="button" data-i18n="logout">登出</button>
+    <span class="sf-ver">v0.8.1</span>
+  </div>
+</div>
+
+<!-- 设置弹窗 -->
+<div id="settingsModal">
+  <div class="modal-bg" id="modalBg"></div>
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>设置</h2>
+      <button class="modal-close" id="modalClose" type="button">&times;</button>
+    </div>
+    <div class="modal-body">
+      <!-- 配置摘要 -->
+      <div class="cfg-summary" id="cfgSummary" data-i18n="loading">加载中...</div>
+      <!-- Tab 栏 -->
+      <div class="cfg-tabs">
+        <div class="cfg-tab active" data-tab="llm" data-i18n="tabLlm">LLM</div>
+        <div class="cfg-tab" data-tab="img" data-i18n="tabImg">图片</div>
+        <div class="cfg-tab" data-tab="tts" data-i18n="tabTts">TTS</div>
+        <div class="cfg-tab" data-tab="search" data-i18n="tabSearch">搜索</div>
+        <div class="cfg-tab" data-tab="profile" data-i18n="tabProfile">人格</div>
+      </div>
+      <!-- LLM Tab -->
+      <div class="cfg-pane active" data-pane="llm">
+        <div class="setting-row">
+          <label data-i18n="labelModelName">模型名称</label>
+          <input type="text" id="cfgModelName" placeholder="deepseek-chat">
+        </div>
+        <div class="setting-row">
+          <label data-i18n="labelApiEndpoint">API 地址</label>
+          <input type="text" id="cfgModelEndpoint" placeholder="https://api.deepseek.com">
+        </div>
+        <div class="setting-row">
+          <label>API Key <span id="siModelKey" class="save-indicator">*</span></label>
+          <input type="password" style="position:absolute;left:-9999px" tabindex="-1"><input type="password" id="cfgModelKey" placeholder="sk-..." autocomplete="new-password">
+        </div>
+        <div class="preset-section">
+          <div class="ps-head"><span data-i18n="subtitlePresets">预设管理</span></div>
+          <div class="preset-row">
+            <select class="preset-select" id="presetSelectLlm"><option value="" data-i18n="selectPreset">选择预设</option></select>
+            <span class="preset-active-tag" id="presetActiveLlm" style="display:none" data-i18n="activePreset">生效中</span>
+            <div class="preset-actions">
+              <button type="button" class="pa-btn apply" onclick="applyPreset('llm')" data-i18n="applyBtn">应用</button>
+              <button type="button" class="pa-btn del" onclick="delPreset('llm')" data-i18n="deleteBtn">删除</button>
+            </div>
+          </div>
+          <div class="preset-save-row">
+            <input type="text" id="cfgPresetName" data-i18n-placeholder="presetNamePlaceholder" placeholder="输入名称保存当前配置为预设">
+            <button type="button" class="ps-save" onclick="savePreset('llm')" data-i18n="savePresetBtn">保存为预设</button>
+          </div>
+        </div>
+      </div>
+      <!-- 图片 Tab -->
+      <div class="cfg-pane" data-pane="img">
+        <div class="setting-row">
+          <label data-i18n="labelImgModel">模型</label>
+          <input type="text" id="cfgImgModel" placeholder="dall-e-3">
+        </div>
+        <div class="setting-row">
+          <label data-i18n="labelImgEndpoint">API 地址</label>
+          <input type="text" id="cfgImgEndpoint" placeholder="https://api.openai.com/v1/images/generations">
+        </div>
+        <div class="setting-row">
+          <label>API Key <span id="siImgKey" class="save-indicator">*</span></label>
+          <input type="password" style="position:absolute;left:-9999px" tabindex="-1"><input type="password" id="cfgImgKey" placeholder="sk-..." autocomplete="new-password">
+        </div>
+        <div class="preset-section">
+          <div class="ps-head"><span data-i18n="subtitlePresets">预设管理</span></div>
+          <div class="preset-row">
+            <select class="preset-select" id="presetSelectImg"><option value="" data-i18n="selectPreset">选择预设</option></select>
+            <span class="preset-active-tag" id="presetActiveImg" style="display:none" data-i18n="activePreset">生效中</span>
+            <div class="preset-actions">
+              <button type="button" class="pa-btn apply" onclick="applyPreset('img')" data-i18n="applyBtn">应用</button>
+              <button type="button" class="pa-btn del" onclick="delPreset('img')" data-i18n="deleteBtn">删除</button>
+            </div>
+          </div>
+          <div class="preset-save-row">
+            <input type="text" id="cfgPresetNameImg" data-i18n-placeholder="presetNamePlaceholder" placeholder="输入名称保存当前配置为预设">
+            <button type="button" class="ps-save" onclick="savePreset('img')" data-i18n="savePresetBtn">保存为预设</button>
+          </div>
+        </div>
+      </div>
+      <!-- TTS Tab -->
+      <div class="cfg-pane" data-pane="tts">
+        <div class="setting-row">
+          <label data-i18n="labelTtsModel">模型</label>
+          <input type="text" id="cfgTtsModel" placeholder="tts-1">
+        </div>
+        <div class="setting-row">
+          <label data-i18n="labelTtsVoice">语音</label>
+          <input type="text" id="cfgTtsVoice" placeholder="alloy">
+        </div>
+        <div class="setting-row">
+          <label data-i18n="labelTtsEndpoint">API 地址</label>
+          <input type="text" id="cfgTtsEndpoint" placeholder="https://api.openai.com/v1/audio/speech">
+        </div>
+        <div class="setting-row">
+          <label>API Key <span id="siTtsKey" class="save-indicator">*</span></label>
+          <input type="password" style="position:absolute;left:-9999px" tabindex="-1"><input type="password" id="cfgTtsKey" placeholder="sk-..." autocomplete="new-password">
+        </div>
+        <div class="setting-row">
+          <label style="display:flex;align-items:center;gap:8px">
+            <span data-i18n="labelTtsToggle">朗读开关</span>
+            <label class="switch"><input type="checkbox" id="cfgTtsToggle"><span class="slider"></span></label>
+          </label>
+        </div>
+        <div class="preset-section">
+          <div class="ps-head"><span data-i18n="subtitlePresets">预设管理</span></div>
+          <div class="preset-row">
+            <select class="preset-select" id="presetSelectTts"><option value="" data-i18n="selectPreset">选择预设</option></select>
+            <span class="preset-active-tag" id="presetActiveTts" style="display:none" data-i18n="activePreset">生效中</span>
+            <div class="preset-actions">
+              <button type="button" class="pa-btn apply" onclick="applyPreset('tts')" data-i18n="applyBtn">应用</button>
+              <button type="button" class="pa-btn del" onclick="delPreset('tts')" data-i18n="deleteBtn">删除</button>
+            </div>
+          </div>
+          <div class="preset-save-row">
+            <input type="text" id="cfgPresetNameTts" data-i18n-placeholder="presetNamePlaceholder" placeholder="输入名称保存当前配置为预设">
+            <button type="button" class="ps-save" onclick="savePreset('tts')" data-i18n="savePresetBtn">保存为预设</button>
+          </div>
+        </div>
+      </div>
+      <!-- 搜索 Tab -->
+      <div class="cfg-pane" data-pane="search">
+        <div class="setting-row">
+          <label>Tavily API Key <span id="siTavilyKey" class="save-indicator">*</span></label>
+          <input type="password" style="position:absolute;left:-9999px" tabindex="-1"><input type="password" id="cfgTavilyKey" placeholder="tvly-..." autocomplete="new-password">
+        </div>
+      </div>
+      <!-- 人格 Tab -->
+      <div class="cfg-pane" data-pane="profile">
+        <div style="font-size:12px;color:var(--dim);margin-bottom:10px" data-i18n="titleCreateProfile">创建自定义人格</div>
+        <div class="setting-row">
+          <label data-i18n="labelProfileName">人格名称</label>
+          <input type="text" id="cfgProfileName" data-i18n-placeholder="phProfileName" placeholder="如：小助手、老师、程序员">
+        </div>
+        <div class="setting-row">
+          <label data-i18n="labelProfileTag">标签（用逗号分隔）</label>
+          <input type="text" id="cfgProfileTag" data-i18n-placeholder="phProfileTag" placeholder="如：温柔、专业、幽默">
+        </div>
+        <div class="setting-row">
+          <label data-i18n="labelProfileStyle">说话风格</label>
+          <textarea id="cfgProfileStyle" rows="3" data-i18n-placeholder="phProfileStyle" placeholder="如：说话简洁，喜欢用短句，偶尔开玩笑" style="width:100%;background:rgba(14,14,22,.8);border:1px solid rgba(108,140,108,.06);border-radius:10px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;font-family:var(--font);resize:vertical;transition:all .25s"></textarea>
+        </div>
+        <div class="setting-row">
+          <label data-i18n="labelProfileRules">核心准则</label>
+          <textarea id="cfgProfileRules" rows="3" data-i18n-placeholder="phProfileRules" placeholder="如：永远说实话，不做没把握的承诺" style="width:100%;background:rgba(14,14,22,.8);border:1px solid rgba(108,140,108,.06);border-radius:10px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;font-family:var(--font);resize:vertical;transition:all .25s"></textarea>
+        </div>
+        <div class="setting-row">
+          <button class="sbtn" type="button" id="cfgProfileCreate" data-i18n="btnCreateProfile">创建人格</button>
+          <span id="cfgProfileStatus" class="sstatus" style="margin-left:8px"></span>
+        </div>
+        <div id="profileListSettings" style="margin-top:12px;border-top:1px solid var(--border);padding-top:10px">
+          <div style="font-size:12px;color:var(--dim);margin-bottom:8px" data-i18n="titleExistingProfiles">已有自定义人格</div>
+          <div id="customProfileList" data-i18n="loading">加载中...</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <span id="cfgStatus" class="sstatus"></span>
+      <button class="sbtn danger" type="button" id="clearAllBtn" data-i18n="clearAll">清除所有会话</button>
+    </div>
   </div>
 </div>
 
@@ -478,18 +664,18 @@ footer #attachBtn:hover:not(:disabled){background:#7da07d;transform:translateY(-
 <!-- 主区域 -->
 <div id="main">
   <div id="topbar">
-    <button class="menu-btn" id="menuBtn">&#9776;</button>
+    <button type="button" class="menu-btn" id="menuBtn">&#9776;</button>
     <span id="curSession" data-i18n="defaultSession">默认会话</span>
     <div class="spacer"></div>
-    <select id="langSwitcher" style="background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;padding:2px 6px;cursor:pointer;outline:none;font-family:var(--font)"></select>
+    <select id="langSwitcher" class="profile-select" style="font-size:11px;padding:4px 8px;padding-right:22px"></select>
   </div>
   <div id="chat"></div>
   <div id="ctxBar"></div>
   <div id="filePreview"></div>
   <footer>
-    <button id="attachBtn" title="上传文件" disabled style="width:36px;height:40px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0"><svg viewBox="0 0 32 32" width="18" height="18" style="fill:#fff"><path d="M4,28a3,3,0,0,1-3-3V7A3,3,0,0,1,4,4h7a1,1,0,0,1,.77.36L14.8,8H27a1,1,0,0,1,0,2H14.33a1,1,0,0,1-.76-.36L10.53,6H4A1,1,0,0,0,3,7V25a1,1,0,0,0,1,1,1,1,0,0,1,0,2Z"/><path d="M25.38,28H4a1,1,0,0,1-1-1.21l3-14A1,1,0,0,1,7,12H30a1,1,0,0,1,1,1.21L28.32,25.63A3,3,0,0,1,25.38,28ZM5.24,26H25.38a1,1,0,0,0,1-.79L28.76,14h-21Z"/></svg></button>
+    <button type="button" id="attachBtn" title="上传文件" disabled style="width:36px;height:40px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0"><svg viewBox="0 0 32 32" width="18" height="18" style="fill:#fff"><path d="M4,28a3,3,0,0,1-3-3V7A3,3,0,0,1,4,4h7a1,1,0,0,1,.77.36L14.8,8H27a1,1,0,0,1,0,2H14.33a1,1,0,0,1-.76-.36L10.53,6H4A1,1,0,0,0,3,7V25a1,1,0,0,0,1,1,1,1,0,0,1,0,2Z"/><path d="M25.38,28H4a1,1,0,0,1-1-1.21l3-14A1,1,0,0,1,7,12H30a1,1,0,0,1,1,1.21L28.32,25.63A3,3,0,0,1,25.38,28ZM5.24,26H25.38a1,1,0,0,0,1-.79L28.76,14h-21Z"/></svg></button>
     <textarea id="input" rows="1" data-i18n="inputPlaceholder" placeholder="说点什么…" disabled></textarea>
-    <button id="sendBtn" data-i18n="sendBtn" disabled>发送</button>
+    <button type="button" id="sendBtn" data-i18n="sendBtn" disabled>发送</button>
           </footer>
 </div>
 
@@ -508,191 +694,227 @@ var $=function(id){return document.getElementById(id)};
 // ─── 国际化 ───
 var _I18N={zh:{
   loading:'加载中...',networkError:'网络错误',loadFailed:'加载失败',save:'保存',test:'测试连接',saved:'已保存',saveFailed:'保存失败',noChange:'无更改',connOk:'连接成功',connFail:'失败: ',testing:'测试中...',saving:'保存中...',unAuth:'未授权',error:'错误: ',
-  pwdPlaceholder:'密码',loginBtn:'进入',docLink:'📜 文档',
+  pwdPlaceholder:'密码',loginBtn:'进入',docLink:'文档',
   sidebarSessions:'会话',sidebarTools:'工具',sidebarReflection:'自省',sidebarDocs:'文档',sidebarSettings:'设置',
   newSessPlaceholder:'名称（可选）',newSessBtn:'新建',noSessions:'暂无会话，新建一个',curSess:'当前',deleteSess:'删除会话？',clearSess:'确认删除所有会话？',
   tabReflog:'反思',tabExp:'蒸馏',tabRules:'准则',noReflog:'暂无反思',noExp:'暂无蒸馏',noRules:'暂无准则',refresh:'↻ 刷新',
-  labelModelName:'模型名称',labelApiEndpoint:'API 地址（可选，默认 DeepSeek）',labelApiKey:'API Key',labelSearchKey:'Tavily 搜索 API Key',subtitleImageGen:'图像生成',labelImgModel:'模型',labelImgEndpoint:'API 地址',labelImgKey:'API Key',subtitleTts:'语音合成 (TTS)',labelTtsModel:'模型',labelTtsVoice:'语音',labelTtsEndpoint:'API 地址',labelTtsKey:'API Key',labelTtsToggle:'启动朗读',subtitlePresets:'📋 预设管理',selectPreset:'选择预设',clearAll:'✖ 清除所有会话',logout:'登出',offline:'离线',loginTitle:'进入',confirmLogout:'确认登出？',
+  labelModelName:'模型名称',labelApiEndpoint:'API 地址（可选，默认 DeepSeek）',labelApiKey:'API Key',labelSearchKey:'Tavily 搜索 API Key',subtitleImageGen:'图像生成',labelImgModel:'模型',labelImgEndpoint:'API 地址',labelImgKey:'API Key',subtitleTts:'语音合成 (TTS)',labelTtsModel:'模型',labelTtsVoice:'语音',labelTtsEndpoint:'API 地址',labelTtsKey:'API Key',labelTtsToggle:'启动朗读',subtitlePresets:'预设管理',selectPreset:'选择预设',clearAll:'清除所有会话',logout:'登出',offline:'离线',loginTitle:'进入',confirmLogout:'确认登出？',
   emptyChat:'{name}在等你。',sendBtn:'发送',inputPlaceholder:'说点什么…',defaultSession:'默认会话',
-  copy:'📋 复制',copied:'✅ 已复制',
+  copy:'复制',copied:'已复制',
   langZh:'中文',langEn:'English',
   uploadDir:'上传目录',noTools:'暂无工具',tools:'工具',
-  viewDocs:'📄 查看完整文档',
+  viewDocs:'查看完整文档',
   uploading:'正在上传 {name}...',uploadedFile:'我上传了文件: {name}',parseFailed:'响应解析失败',connFailed:'连接失败',switchProfile:'切换中...',switchFailed:'切换失败: ',unknownError:'未知错误',msgCount:'{n} 条消息',
   tabLlm:'LLM',tabImg:'图片',tabTts:'TTS',tabSearch:'搜索',tabProfile:'人格',presets:'预设',presetNamePlaceholder:'预设名称',savePresetBtn:'保存为预设',
   titleCreateProfile:'创建自定义人格',labelProfileName:'人格名称',phProfileName:'如：小助手、老师、程序员',labelProfileTag:'标签（用逗号分隔）',phProfileTag:'如：温柔、专业、幽默',
   labelProfileStyle:'说话风格',phProfileStyle:'如：说话简洁，喜欢用短句，偶尔开玩笑',labelProfileRules:'核心准则',phProfileRules:'如：永远说实话，不做没把握的承诺',
   btnCreateProfile:'创建人格',titleExistingProfiles:'已有自定义人格',noCustomProfiles:'暂无自定义人格',deleteBtn:'删除',confirmDeleteProfile:'删除人格 "{name}" ？',
-  profileNameRequired:'请输入名称',profileCreated:'✓ 已创建: {name}',profileCreateFailed:'创建失败',profileCreateFailedWith:'创建失败: {error}',creating:'创建中...',
+  profileNameRequired:'请输入名称',profileCreated:'已创建: {name}',profileCreateFailed:'创建失败',profileCreateFailedWith:'创建失败: {error}',creating:'创建中...',
   configured:'已配置',notConfigured:'未配置',noKey:'无Key',noPresets:'暂无预设',wrongPassword:'密码错误',
+  ctxLabel:'上下文',ctxMessages:'消息',ctxIn:'in',ctxOut:'out',ctxMax:'max',
+  copyFailed:'复制失败，请手动选择复制',
+  settingsBtn:'设置',activePreset:'生效中',applyBtn:'应用',applyingPreset:'应用 {name} 中...',presetApplied:'已生效',applyFailed:'应用失败',confirmDeletePreset:'删除预设 "{name}" ？',presetDeleted:'已删除: {name}',
+  timeoutMsg:'等待超时，请刷新页面重试。',
 }};
 _I18N.en={
   loading:'Loading...',networkError:'Network error',loadFailed:'Failed to load',save:'Save',test:'Test Connection',saved:'Saved',saveFailed:'Save failed',noChange:'No changes',connOk:'Connected',connFail:'Failed: ',testing:'Testing...',saving:'Saving...',unAuth:'Unauthorized',error:'Error: ',
-  pwdPlaceholder:'Password',loginBtn:'Enter',docLink:'📜 Docs',
+  pwdPlaceholder:'Password',loginBtn:'Enter',docLink:'Docs',
   sidebarSessions:'Sessions',sidebarTools:'Tools',sidebarReflection:'Insights',sidebarDocs:'Docs',sidebarSettings:'Settings',
   newSessPlaceholder:'Title (optional)',newSessBtn:'New',noSessions:'No sessions yet',curSess:'Current',deleteSess:'Delete session?',clearSess:'Delete all sessions?',
   tabReflog:'Reflections',tabExp:'Learnings',tabRules:'Rules',noReflog:'No reflections',noExp:'No learnings',noRules:'No rules',refresh:'↻ Refresh',
-  labelModelName:'Model Name',labelApiEndpoint:'API Endpoint (optional, default DeepSeek)',labelApiKey:'API Key',labelSearchKey:'Tavily Search API Key',subtitleImageGen:'🖼️ Image Generation',labelImgModel:'Model',labelImgEndpoint:'API Endpoint',labelImgKey:'API Key',subtitleTts:'🔊 TTS Speech',labelTtsModel:'Model',labelTtsVoice:'Voice',labelTtsEndpoint:'API Endpoint',labelTtsKey:'API Key',labelTtsToggle:'Enable TTS',subtitlePresets:'📋 Presets',selectPreset:'Select Preset',clearAll:'✖ Clear All Sessions',logout:'Log out',offline:'Offline',loginTitle:'Enter',confirmLogout:'Confirm logout?',
+  labelModelName:'Model Name',labelApiEndpoint:'API Endpoint (optional, default DeepSeek)',labelApiKey:'API Key',labelSearchKey:'Tavily Search API Key',subtitleImageGen:'Image Generation',labelImgModel:'Model',labelImgEndpoint:'API Endpoint',labelImgKey:'API Key',subtitleTts:'TTS Speech',labelTtsModel:'Model',labelTtsVoice:'Voice',labelTtsEndpoint:'API Endpoint',labelTtsKey:'API Key',labelTtsToggle:'Enable TTS',subtitlePresets:'Presets',selectPreset:'Select Preset',clearAll:'Clear All Sessions',logout:'Log out',offline:'Offline',loginTitle:'Enter',confirmLogout:'Confirm logout?',
   emptyChat:'Waiting for {name}...',sendBtn:'Send',inputPlaceholder:'Type a message…',defaultSession:'Default Session',
-  copy:'📋 Copy',copied:'✅ Copied',
+  copy:'Copy',copied:'Copied',
   langZh:'中文',langEn:'English',
-  viewDocs:'📄 View Docs',
+  viewDocs:'View Docs',
   noTools:'No tools',
   uploading:'Uploading {name}...',uploadedFile:'Uploaded: {name}',parseFailed:'Parse failed',connFailed:'Connection failed',switchProfile:'Switching...',switchFailed:'Switch failed: ',unknownError:'Unknown error',msgCount:'{n} messages',
   tabLlm:'LLM',tabImg:'Image',tabTts:'TTS',tabSearch:'Search',tabProfile:'Profile',presets:'Presets',presetNamePlaceholder:'Preset name',savePresetBtn:'Save as Preset',
   titleCreateProfile:'Create Custom Profile',labelProfileName:'Profile Name',phProfileName:'e.g. Assistant, Teacher, Coder',labelProfileTag:'Tags (comma separated)',phProfileTag:'e.g. Gentle, Professional, Humorous',
   labelProfileStyle:'Speaking Style',phProfileStyle:'e.g. Concise, prefers short sentences, jokes occasionally',labelProfileRules:'Core Rules',phProfileRules:'e.g. Always tell the truth, make no uncertain promises',
   btnCreateProfile:'Create Profile',titleExistingProfiles:'Existing Profiles',noCustomProfiles:'No custom profiles',deleteBtn:'Delete',confirmDeleteProfile:'Delete profile "{name}"?',
-  profileNameRequired:'Please enter a name',profileCreated:'✓ Created: {name}',profileCreateFailed:'Create failed',profileCreateFailedWith:'Create failed: {error}',creating:'Creating...',
+  profileNameRequired:'Please enter a name',profileCreated:'Created: {name}',profileCreateFailed:'Create failed',profileCreateFailedWith:'Create failed: {error}',creating:'Creating...',
   configured:'Configured',notConfigured:'Not Configured',noKey:'No Key',noPresets:'No presets',wrongPassword:'Wrong password',
+  ctxLabel:'Context',ctxMessages:'Messages',ctxIn:'in',ctxOut:'out',ctxMax:'max',
+  copyFailed:'Copy failed, please select and copy manually',
+  settingsBtn:'Settings',activePreset:'Active',applyBtn:'Apply',applyingPreset:'Applying {name}...',presetApplied:'Applied',applyFailed:'Apply failed',confirmDeletePreset:'Delete preset "{name}"?',presetDeleted:'Deleted: {name}',
+  timeoutMsg:'Timeout. Please refresh the page and try again.',
 };
 _I18N.ja={
   loading:'読み込み中...',networkError:'ネットワークエラー',loadFailed:'読み込み失敗',save:'保存',test:'接続テスト',saved:'保存しました',saveFailed:'保存失敗',noChange:'変更なし',connOk:'接続成功',connFail:'失敗: ',testing:'テスト中...',saving:'保存中...',unAuth:'認証エラー',error:'エラー: ',
-  pwdPlaceholder:'パスワード',loginBtn:'ログイン',docLink:'📜 ドキュメント',
+  pwdPlaceholder:'パスワード',loginBtn:'ログイン',docLink:'ドキュメント',
   sidebarSessions:'セッション',sidebarTools:'ツール',sidebarReflection:'インサイト',sidebarDocs:'ドキュメント',sidebarSettings:'設定',
   newSessPlaceholder:'タイトル（任意）',newSessBtn:'新規',noSessions:'セッションがありません',curSess:'現在',deleteSess:'セッションを削除？',clearSess:'全てのセッションを削除？',
   tabReflog:'振り返り',tabExp:'学び',tabRules:'ルール',noReflog:'振り返りなし',noExp:'学びなし',noRules:'ルールなし',refresh:'↻ 更新',
-  labelModelName:'モデル名',labelApiEndpoint:'API エンドポイント（任意、デフォルト DeepSeek）',labelApiKey:'API Key',labelSearchKey:'Tavily 検索 API Key',subtitleImageGen:'🖼️ 画像生成',labelImgModel:'モデル',labelImgEndpoint:'API エンドポイント',labelImgKey:'API Key',subtitleTts:'🔊 TTS 音声',labelTtsModel:'モデル',labelTtsVoice:'声',labelTtsEndpoint:'API エンドポイント',labelTtsKey:'API Key',labelTtsToggle:'読み上げ',clearAll:'✖ 全セッション削除',logout:'ログアウト',offline:'オフライン',loginTitle:'ログイン',confirmLogout:'ログアウトしますか？',
+  labelModelName:'モデル名',labelApiEndpoint:'API エンドポイント（任意、デフォルト DeepSeek）',labelApiKey:'API Key',labelSearchKey:'Tavily 検索 API Key',subtitleImageGen:'画像生成',labelImgModel:'モデル',labelImgEndpoint:'API エンドポイント',labelImgKey:'API Key',subtitleTts:'TTS 音声',labelTtsModel:'モデル',labelTtsVoice:'声',labelTtsEndpoint:'API エンドポイント',labelTtsKey:'API Key',labelTtsToggle:'読み上げ',clearAll:'全セッション削除',logout:'ログアウト',offline:'オフライン',loginTitle:'ログイン',confirmLogout:'ログアウトしますか？',
   emptyChat:'{name}をお待ちしています。',sendBtn:'送信',inputPlaceholder:'メッセージを入力…',defaultSession:'デフォルトセッション',
-  copy:'📋 コピー',copied:'✅ コピー完了',
+  copy:'コピー',copied:'コピー完了',
   langZh:'中文',langEn:'English',
-  viewDocs:'📄 ドキュメントを見る',
+  viewDocs:'ドキュメントを見る',
   noTools:'ツールなし',
   uploading:'{name} をアップロード中...',uploadedFile:'ファイルをアップロードしました: {name}',parseFailed:'応答の解析に失敗',connFailed:'接続失敗',switchProfile:'切り替え中...',switchFailed:'切り替え失敗: ',unknownError:'不明なエラー',msgCount:'{n} 件のメッセージ',
   tabLlm:'LLM',tabImg:'画像',tabTts:'TTS',tabSearch:'検索',tabProfile:'プロファイル',presets:'プリセット',presetNamePlaceholder:'プリセット名',savePresetBtn:'プリセットとして保存',
-  subtitleTts:'🔊 TTS 音声',subtitlePresets:'📋 プリセット管理',selectPreset:'プリセット選択',
+  subtitleTts:'TTS 音声',subtitlePresets:'プリセット管理',selectPreset:'プリセット選択',
   titleCreateProfile:'カスタムプロファイル作成',labelProfileName:'プロファイル名',phProfileName:'例：アシスタント、先生、プログラマー',labelProfileTag:'タグ（カンマ区切り）',phProfileTag:'例：親切、専門的、ユーモア',
   labelProfileStyle:'話し方',phProfileStyle:'例：簡潔で短い文を好み、たまに冗談を言う',labelProfileRules:'核心ルール',phProfileRules:'例：常に真実を語り、不確かな約束はしない',
   btnCreateProfile:'プロファイル作成',titleExistingProfiles:'既存のプロファイル',noCustomProfiles:'カスタムプロファイルはありません',deleteBtn:'削除',confirmDeleteProfile:'プロファイル "{name}" を削除しますか？',
-  profileNameRequired:'名前を入力してください',profileCreated:'✓ 作成しました: {name}',profileCreateFailed:'作成失敗',profileCreateFailedWith:'作成失敗: {error}',creating:'作成中...',
+  profileNameRequired:'名前を入力してください',profileCreated:'作成しました: {name}',profileCreateFailed:'作成失敗',profileCreateFailedWith:'作成失敗: {error}',creating:'作成中...',
   configured:'設定済み',notConfigured:'未設定',noKey:'キーなし',noPresets:'プリセットなし',wrongPassword:'パスワードが違います',
+  ctxLabel:'コンテキスト',ctxMessages:'メッセージ',ctxIn:'in',ctxOut:'out',ctxMax:'max',
+  copyFailed:'コピーに失敗しました。手動で選択してコピーしてください',
+  settingsBtn:'設定',activePreset:'有効',applyBtn:'適用',applyingPreset:'{name} を適用中...',presetApplied:'適用完了',applyFailed:'適用失敗',confirmDeletePreset:'プリセット "{name}" を削除しますか？',presetDeleted:'削除しました: {name}',
+  timeoutMsg:'タイムアウトしました。ページを更新してもう一度お試しください。',
 };
 _I18N.ko={
   loading:'로딩 중...',networkError:'네트워크 오류',loadFailed:'로딩 실패',save:'저장',test:'연결 테스트',saved:'저장됨',saveFailed:'저장 실패',noChange:'변경 없음',connOk:'연결 성공',connFail:'실패: ',testing:'테스트 중...',saving:'저장 중...',unAuth:'권한 없음',error:'오류: ',
-  pwdPlaceholder:'비밀번호',loginBtn:'로그인',docLink:'📜 문서',
+  pwdPlaceholder:'비밀번호',loginBtn:'로그인',docLink:'문서',
   sidebarSessions:'세션',sidebarTools:'도구',sidebarReflection:'인사이트',sidebarDocs:'문서',sidebarSettings:'설정',
   newSessPlaceholder:'제목(선택)',newSessBtn:'새로 만들기',noSessions:'세션이 없습니다',curSess:'현재',deleteSess:'세션 삭제?',clearSess:'모든 세션 삭제?',
   tabReflog:'반성',tabExp:'학습',tabRules:'규칙',noReflog:'반성 없음',noExp:'학습 없음',noRules:'규칙 없음',refresh:'↻ 새로고침',
-  labelModelName:'모델 이름',labelApiEndpoint:'API 엔드포인트(선택, 기본 DeepSeek)',labelApiKey:'API Key',labelSearchKey:'Tavily 검색 API Key',subtitleImageGen:'🖼️ 이미지 생성',labelImgModel:'모델',labelImgEndpoint:'API 엔드포인트',labelImgKey:'API Key',subtitleTts:'🔊 TTS 음성',labelTtsModel:'모델',labelTtsVoice:'음성',labelTtsEndpoint:'API 엔드포인트',labelTtsKey:'API Key',labelTtsToggle:'읽기',clearAll:'✖ 모든 세션 지우기',logout:'로그아웃',offline:'오프라인',loginTitle:'로그인',confirmLogout:'로그아웃 확인?',
+  labelModelName:'모델 이름',labelApiEndpoint:'API 엔드포인트(선택, 기본 DeepSeek)',labelApiKey:'API Key',labelSearchKey:'Tavily 검색 API Key',subtitleImageGen:'이미지 생성',labelImgModel:'모델',labelImgEndpoint:'API 엔드포인트',labelImgKey:'API Key',subtitleTts:'TTS 음성',labelTtsModel:'모델',labelTtsVoice:'음성',labelTtsEndpoint:'API 엔드포인트',labelTtsKey:'API Key',labelTtsToggle:'읽기',clearAll:'모든 세션 지우기',logout:'로그아웃',offline:'오프라인',loginTitle:'로그인',confirmLogout:'로그아웃 확인?',
   emptyChat:'{name}을(를) 기다리는 중...',sendBtn:'전송',inputPlaceholder:'메시지 입력…',defaultSession:'기본 세션',
-  copy:'📋 복사',copied:'✅ 복사됨',
+  copy:'복사',copied:'복사됨',
   langZh:'中文',langEn:'English',
-  viewDocs:'📄 문서 보기',
+  viewDocs:'문서 보기',
   noTools:'도구 없음',
   uploading:'{name} 업로드 중...',uploadedFile:'파일 업로드됨: {name}',parseFailed:'응답 분석 실패',connFailed:'연결 실패',switchProfile:'전환 중...',switchFailed:'전환 실패: ',unknownError:'알 수 없는 오류',msgCount:'{n}개 메시지',
   tabLlm:'LLM',tabImg:'이미지',tabTts:'TTS',tabSearch:'검색',tabProfile:'프로필',presets:'프리셋',presetNamePlaceholder:'프리셋 이름',savePresetBtn:'프리셋으로 저장',
-  subtitleTts:'🔊 TTS 음성',subtitlePresets:'📋 프리셋 관리',selectPreset:'프리셋 선택',
+  subtitleTts:'TTS 음성',subtitlePresets:'프리셋 관리',selectPreset:'프리셋 선택',
   titleCreateProfile:'사용자 정의 프로필 생성',labelProfileName:'프로필 이름',phProfileName:'예: 비서, 선생님, 프로그래머',labelProfileTag:'태그 (쉼표로 구분)',phProfileTag:'예: 친절함, 전문적, 유머러스함',
   labelProfileStyle:'대화 스타일',phProfileStyle:'예: 간결하고 짧은 문장을 선호하며 가끔 농담을 함',labelProfileRules:'핵심 규칙',phProfileRules:'예: 항상 진실을 말하고, 불확실한 약속은 하지 않음',
   btnCreateProfile:'프로필 생성',titleExistingProfiles:'기존 프로필',noCustomProfiles:'사용자 정의 프로필이 없습니다',deleteBtn:'삭제',confirmDeleteProfile:'프로필 "{name}"을(를) 삭제하시겠습니까?',
-  profileNameRequired:'이름을 입력하세요',profileCreated:'✓ 생성됨: {name}',profileCreateFailed:'생성 실패',profileCreateFailedWith:'생성 실패: {error}',creating:'생성 중...',
+  profileNameRequired:'이름을 입력하세요',profileCreated:'생성됨: {name}',profileCreateFailed:'생성 실패',profileCreateFailedWith:'생성 실패: {error}',creating:'생성 중...',
   configured:'설정됨',notConfigured:'설정되지 않음',noKey:'키 없음',noPresets:'프리셋 없음',wrongPassword:'비밀번호가 잘못되었습니다',
+  ctxLabel:'컨텍스트',ctxMessages:'메시지',ctxIn:'in',ctxOut:'out',ctxMax:'max',
+  copyFailed:'복사에 실패했습니다. 수동으로 선택하여 복사하세요',
+  settingsBtn:'설정',activePreset:'활성',applyBtn:'적용',applyingPreset:'{name} 적용 중...',presetApplied:'적용됨',applyFailed:'적용 실패',confirmDeletePreset:'프리셋 "{name}"을(를) 삭제하시겠습니까?',presetDeleted:'삭제됨: {name}',
+  timeoutMsg:'시간 초과. 페이지를 새로고침하고 다시 시도해 주세요.',
 };
 _I18N.fr={
   loading:'Chargement...',networkError:'Erreur réseau',loadFailed:'Échec du chargement',save:'Enregistrer',test:'Tester',saved:'Enregistré',saveFailed:'Échec',noChange:'Aucun changement',connOk:'Connecté',connFail:'Échec: ',testing:'Test...',saving:'Enregistrement...',unAuth:'Non autorisé',error:'Erreur: ',
-  pwdPlaceholder:'Mot de passe',loginBtn:'Entrer',docLink:'📜 Docs',
+  pwdPlaceholder:'Mot de passe',loginBtn:'Entrer',docLink:'Docs',
   sidebarSessions:'Sessions',sidebarTools:'Outils',sidebarReflection:'Aperçus',sidebarDocs:'Docs',sidebarSettings:'Paramètres',
   newSessPlaceholder:'Titre (optionnel)',newSessBtn:'Nouveau',noSessions:'Aucune session',curSess:'Actuel',deleteSess:'Supprimer la session ?',clearSess:'Tout supprimer ?',
   tabReflog:'Réflexions',tabExp:'Apprentissages',tabRules:'Règles',noReflog:'Aucune réflexion',noExp:'Aucun apprentissage',noRules:'Aucune règle',refresh:'↻ Actualiser',
-  labelModelName:'Nom du modèle',labelApiEndpoint:'Endpoint API (optionnel, défaut DeepSeek)',labelApiKey:'Clé API',labelSearchKey:'Clé API Tavily',subtitleImageGen:'🖼️ Génération d\'image',labelImgModel:'Modèle',labelImgEndpoint:'Endpoint API',labelImgKey:'Clé API',subtitleTts:'🔊 Synthèse vocale',labelTtsModel:'Modèle',labelTtsVoice:'Voix',labelTtsEndpoint:'Endpoint API',labelTtsKey:'Clé API',labelTtsToggle:'Lecture',clearAll:'✖ Tout effacer',logout:'Déconnexion',offline:'Hors ligne',loginTitle:'Entrer',confirmLogout:'Confirmer la déconnexion ?',
+  labelModelName:'Nom du modèle',labelApiEndpoint:'Endpoint API (optionnel, défaut DeepSeek)',labelApiKey:'Clé API',labelSearchKey:'Clé API Tavily',subtitleImageGen:'Génération d\'image',labelImgModel:'Modèle',labelImgEndpoint:'Endpoint API',labelImgKey:'Clé API',subtitleTts:'Synthèse vocale',labelTtsModel:'Modèle',labelTtsVoice:'Voix',labelTtsEndpoint:'Endpoint API',labelTtsKey:'Clé API',labelTtsToggle:'Lecture',clearAll:'Tout effacer',logout:'Déconnexion',offline:'Hors ligne',loginTitle:'Entrer',confirmLogout:'Confirmer la déconnexion ?',
   emptyChat:'{name} vous attend.',sendBtn:'Envoyer',inputPlaceholder:'Tapez un message…',defaultSession:'Session par défaut',
-  copy:'📋 Copier',copied:'✅ Copié',
+  copy:'Copier',copied:'Copié',
   langZh:'中文',langEn:'English',
-  viewDocs:'📄 Voir les docs',
+  viewDocs:'Voir les docs',
   noTools:'Aucun outil',
   uploading:'Téléchargement {name}...',uploadedFile:'Fichier téléchargé: {name}',parseFailed:'Échec d\'analyse',connFailed:'Connexion échouée',switchProfile:'Changement...',switchFailed:'Échec: ',unknownError:'Erreur inconnue',msgCount:'{n} messages',
   tabLlm:'LLM',tabImg:'Image',tabTts:'TTS',tabSearch:'Recherche',tabProfile:'Profil',presets:'Préréglages',presetNamePlaceholder:'Nom du préréglage',savePresetBtn:'Sauvegarder',
-  subtitleTts:'🔊 Synthèse vocale',subtitlePresets:'📋 Préréglages',selectPreset:'Sélectionner',
+  subtitleTts:'Synthèse vocale',subtitlePresets:'Préréglages',selectPreset:'Sélectionner',
   titleCreateProfile:'Créer un profil personnalisé',labelProfileName:'Nom du profil',phProfileName:'ex. Assistant, Enseignant, Codeur',labelProfileTag:'Tags (séparés par des virgules)',phProfileTag:'ex. Gentil, Professionnel, Humour',
   labelProfileStyle:'Style de parole',phProfileStyle:'ex. Concis, phrases courtes, plaisante parfois',labelProfileRules:'Règles de base',phProfileRules:'ex. Toujours dire la vérité, pas de promesses incertaines',
   btnCreateProfile:'Créer le profil',titleExistingProfiles:'Profils existants',noCustomProfiles:'Aucun profil personnalisé',deleteBtn:'Supprimer',confirmDeleteProfile:'Supprimer le profil "{name}" ?',
-  profileNameRequired:'Veuillez saisir un nom',profileCreated:'✓ Créé: {name}',profileCreateFailed:'Échec de création',profileCreateFailedWith:'Échec de création: {error}',creating:'Création...',
+  profileNameRequired:'Veuillez saisir un nom',profileCreated:'Créé: {name}',profileCreateFailed:'Échec de création',profileCreateFailedWith:'Échec de création: {error}',creating:'Création...',
   configured:'Configuré',notConfigured:'Non configuré',noKey:'Pas de clé',noPresets:'Aucun préréglage',wrongPassword:'Mot de passe incorrect',
+  ctxLabel:'Contexte',ctxMessages:'Messages',ctxIn:'in',ctxOut:'out',ctxMax:'max',
+  copyFailed:'Échec de la copie, veuillez sélectionner et copier manuellement',
+  settingsBtn:'Paramètres',activePreset:'Actif',applyBtn:'Appliquer',applyingPreset:'Application de {name}...',presetApplied:'Appliqué',applyFailed:'Échec d\'application',confirmDeletePreset:'Supprimer le préréglage "{name}" ?',presetDeleted:'Supprimé: {name}',
+  timeoutMsg:'Délai d\'attente dépassé. Veuillez rafraîchir la page et réessayer.',
 };
 _I18N.de={
   loading:'Laden...',networkError:'Netzwerkfehler',loadFailed:'Laden fehlgeschlagen',save:'Speichern',test:'Testen',saved:'Gespeichert',saveFailed:'Speichern fehlgeschlagen',noChange:'Keine Änderungen',connOk:'Verbunden',connFail:'Fehlgeschlagen: ',testing:'Teste...',saving:'Speichere...',unAuth:'Nicht autorisiert',error:'Fehler: ',
-  pwdPlaceholder:'Passwort',loginBtn:'Anmelden',docLink:'📜 Dokumente',
+  pwdPlaceholder:'Passwort',loginBtn:'Anmelden',docLink:'Dokumente',
   sidebarSessions:'Sitzungen',sidebarTools:'Werkzeuge',sidebarReflection:'Einblicke',sidebarDocs:'Dokumente',sidebarSettings:'Einstellungen',
   newSessPlaceholder:'Titel (optional)',newSessBtn:'Neu',noSessions:'Keine Sitzungen',curSess:'Aktuell',deleteSess:'Sitzung löschen?',clearSess:'Alle löschen?',
   tabReflog:'Reflexionen',tabExp:'Lernerfahrungen',tabRules:'Regeln',noReflog:'Keine Reflexionen',noExp:'Keine Lernerfahrungen',noRules:'Keine Regeln',refresh:'↻ Aktualisieren',
-  labelModelName:'Modellname',labelApiEndpoint:'API-Endpunkt (option, Standard DeepSeek)',labelApiKey:'API-Schlüssel',labelSearchKey:'Tavily-Such-API-Schlüssel',subtitleImageGen:'🖼️ Bildgenerierung',labelImgModel:'Modell',labelImgEndpoint:'API-Endpunkt',labelImgKey:'API-Schlüssel',subtitleTts:'🔊 TTS Sprache',labelTtsModel:'Modell',labelTtsVoice:'Stimme',labelTtsEndpoint:'API-Endpunkt',labelTtsKey:'API-Schlüssel',labelTtsToggle:'Vorlesen',clearAll:'✖ Alle löschen',logout:'Abmelden',offline:'Offline',loginTitle:'Anmelden',confirmLogout:'Abmelden bestätigen?',
+  labelModelName:'Modellname',labelApiEndpoint:'API-Endpunkt (option, Standard DeepSeek)',labelApiKey:'API-Schlüssel',labelSearchKey:'Tavily-Such-API-Schlüssel',subtitleImageGen:'Bildgenerierung',labelImgModel:'Modell',labelImgEndpoint:'API-Endpunkt',labelImgKey:'API-Schlüssel',subtitleTts:'TTS Sprache',labelTtsModel:'Modell',labelTtsVoice:'Stimme',labelTtsEndpoint:'API-Endpunkt',labelTtsKey:'API-Schlüssel',labelTtsToggle:'Vorlesen',clearAll:'Alle löschen',logout:'Abmelden',offline:'Offline',loginTitle:'Anmelden',confirmLogout:'Abmelden bestätigen?',
   emptyChat:'Warte auf {name}...',sendBtn:'Senden',inputPlaceholder:'Nachricht eingeben…',defaultSession:'Standardsitzung',
-  copy:'📋 Kopieren',copied:'✅ Kopiert',
+  copy:'Kopieren',copied:'Kopiert',
   langZh:'中文',langEn:'English',
-  viewDocs:'📄 Dokumente anzeigen',
+  viewDocs:'Dokumente anzeigen',
   noTools:'Keine Werkzeuge',
   uploading:'{name} hochladen...',uploadedFile:'Hochgeladen: {name}',parseFailed:'Analyse fehlgeschlagen',connFailed:'Verbindung fehlgeschlagen',switchProfile:'Wechsle...',switchFailed:'Wechsel fehlgeschlagen: ',unknownError:'Unbekannter Fehler',msgCount:'{n} Nachrichten',
   tabLlm:'LLM',tabImg:'Bild',tabTts:'TTS',tabSearch:'Suche',tabProfile:'Profil',presets:'Presets',presetNamePlaceholder:'Preset-Name',savePresetBtn:'Als Preset speichern',
-  subtitleTts:'🔊 TTS Sprache',subtitlePresets:'📋 Preset-Verwaltung',selectPreset:'Presets auswählen',
+  subtitleTts:'TTS Sprache',subtitlePresets:'Preset-Verwaltung',selectPreset:'Presets auswählen',
   titleCreateProfile:'Benutzerdefiniertes Profil erstellen',labelProfileName:'Profilname',phProfileName:'z.B. Assistent, Lehrer, Programmier',labelProfileTag:'Tags (durch Komma getrennt)',phProfileTag:'z.B. Sanft, Professionell, Humorvoll',
   labelProfileStyle:'Sprechstil',phProfileStyle:'z.B. Prägnant, bevorzugt kurze Sätze, scherzt gelegentlich',labelProfileRules:'Kernregeln',phProfileRules:'z.B. Sag immer die Wahrheit, mach keine unsicheren Versprechen',
   btnCreateProfile:'Profil erstellen',titleExistingProfiles:'Existierende Profile',noCustomProfiles:'Keine benutzerdefinierten Profile',deleteBtn:'Löschen',confirmDeleteProfile:'Profil "{name}" löschen?',
-  profileNameRequired:'Bitte Namen eingeben',profileCreated:'✓ Erstellt: {name}',profileCreateFailed:'Erstellung fehlgeschlagen',profileCreateFailedWith:'Fehler: {error}',creating:'Erstelle...',
+  profileNameRequired:'Bitte Namen eingeben',profileCreated:'Erstellt: {name}',profileCreateFailed:'Erstellung fehlgeschlagen',profileCreateFailedWith:'Fehler: {error}',creating:'Erstelle...',
   configured:'Konfiguriert',notConfigured:'Nicht konfiguriert',noKey:'Kein Schlüssel',noPresets:'Keine Presets',wrongPassword:'Falsches Passwort',
+  ctxLabel:'Kontext',ctxMessages:'Nachrichten',ctxIn:'in',ctxOut:'out',ctxMax:'max',
+  copyFailed:'Kopieren fehlgeschlagen, bitte manuell auswählen und kopieren',
+  settingsBtn:'Einstellungen',activePreset:'Aktiv',applyBtn:'Anwenden',applyingPreset:'{name} wird angewendet...',presetApplied:'Angewendet',applyFailed:'Anwenden fehlgeschlagen',confirmDeletePreset:'Preset "{name}" löschen?',presetDeleted:'Gelöscht: {name}',
+  timeoutMsg:'Zeitüberschreitung. Bitte aktualisieren Sie die Seite und versuchen Sie es erneut.',
 };
 _I18N.es={
   loading:'Cargando...',networkError:'Error de red',loadFailed:'Error al cargar',save:'Guardar',test:'Probar',saved:'Guardado',saveFailed:'Error al guardar',noChange:'Sin cambios',connOk:'Conectado',connFail:'Falló: ',testing:'Probando...',saving:'Guardando...',unAuth:'No autorizado',error:'Error: ',
-  pwdPlaceholder:'Contraseña',loginBtn:'Entrar',docLink:'📜 Docs',
+  pwdPlaceholder:'Contraseña',loginBtn:'Entrar',docLink:'Docs',
   sidebarSessions:'Sesiones',sidebarTools:'Herramientas',sidebarReflection:'Información',sidebarDocs:'Docs',sidebarSettings:'Ajustes',
   newSessPlaceholder:'Título (opcional)',newSessBtn:'Nuevo',noSessions:'Sin sesiones',curSess:'Actual',deleteSess:'¿Eliminar sesión?',clearSess:'¿Eliminar todo?',
   tabReflog:'Reflexiones',tabExp:'Aprendizajes',tabRules:'Reglas',noReflog:'Sin reflexiones',noExp:'Sin aprendizajes',noRules:'Sin reglas',refresh:'↻ Actualizar',
-  labelModelName:'Nombre del modelo',labelApiEndpoint:'Endpoint API (opcional, por defecto DeepSeek)',labelApiKey:'Clave API',labelSearchKey:'Clave API de Tavily',subtitleImageGen:'🖼️ Generación de imágenes',labelImgModel:'Modelo',labelImgEndpoint:'Endpoint API',labelImgKey:'Clave API',subtitleTts:'🔊 Voz TTS',labelTtsModel:'Modelo',labelTtsVoice:'Voz',labelTtsEndpoint:'Endpoint API',labelTtsKey:'Clave API',labelTtsToggle:'Leer',clearAll:'✖ Limpiar todo',logout:'Cerrar sesión',offline:'Desconectado',loginTitle:'Entrar',confirmLogout:'¿Confirmar cierre?',
+  labelModelName:'Nombre del modelo',labelApiEndpoint:'Endpoint API (opcional, por defecto DeepSeek)',labelApiKey:'Clave API',labelSearchKey:'Clave API de Tavily',subtitleImageGen:'Generación de imágenes',labelImgModel:'Modelo',labelImgEndpoint:'Endpoint API',labelImgKey:'Clave API',subtitleTts:'Voz TTS',labelTtsModel:'Modelo',labelTtsVoice:'Voz',labelTtsEndpoint:'Endpoint API',labelTtsKey:'Clave API',labelTtsToggle:'Leer',clearAll:'Limpiar todo',logout:'Cerrar sesión',offline:'Desconectado',loginTitle:'Entrar',confirmLogout:'¿Confirmar cierre?',
   emptyChat:'Esperando a {name}...',sendBtn:'Enviar',inputPlaceholder:'Escribe un mensaje…',defaultSession:'Sesión por defecto',
-  copy:'📋 Copiar',copied:'✅ Copiado',
+  copy:'Copiar',copied:'Copiado',
   langZh:'中文',langEn:'English',
-  viewDocs:'📄 Ver docs',
+  viewDocs:'Ver docs',
   noTools:'Sin herramientas',
   uploading:'Subiendo {name}...',uploadedFile:'Archivo subido: {name}',parseFailed:'Error al analizar',connFailed:'Conexión fallida',switchProfile:'Cambiando...',switchFailed:'Error: ',unknownError:'Error desconocido',msgCount:'{n} mensajes',
   tabLlm:'LLM',tabImg:'Imagen',tabTts:'TTS',tabSearch:'Buscar',tabProfile:'Perfil',presets:'Presets',presetNamePlaceholder:'Nombre de preset',savePresetBtn:'Guardar como preset',
-  subtitleTts:'🔊 Voz TTS',subtitlePresets:'📋 Gestión de presets',selectPreset:'Seleccionar',
+  subtitleTts:'Voz TTS',subtitlePresets:'Gestión de presets',selectPreset:'Seleccionar',
   titleCreateProfile:'Crear perfil personalizado',labelProfileName:'Nombre del perfil',phProfileName:'ej. Asistente, Maestro, Programador',labelProfileTag:'Etiquetas (separadas por comas)',phProfileTag:'ej. Amable, Profesional, Humorístico',
   labelProfileStyle:'Estilo de habla',phProfileStyle:'ej. Conciso, prefiere frases cortas, bromea ocasionalmente',labelProfileRules:'Reglas principales',phProfileRules:'ej. Di siempre la verdad, no hagas promesas inciertas',
   btnCreateProfile:'Crear perfil',titleExistingProfiles:'Perfiles existentes',noCustomProfiles:'Sin perfiles personalizados',deleteBtn:'Eliminar',confirmDeleteProfile:'¿Eliminar perfil "{name}"?',
-  profileNameRequired:'Por favor, introduzca un nombre',profileCreated:'✓ Creado: {name}',profileCreateFailed:'Error al crear',profileCreateFailedWith:'Error: {error}',creating:'Creando...',
+  profileNameRequired:'Por favor, introduzca un nombre',profileCreated:'Creado: {name}',profileCreateFailed:'Error al crear',profileCreateFailedWith:'Error: {error}',creating:'Creando...',
   configured:'Configurado',notConfigured:'No configurado',noKey:'Sin clave',noPresets:'Sin presets',wrongPassword:'Contraseña incorrecta',
+  ctxLabel:'Contexto',ctxMessages:'Mensajes',ctxIn:'in',ctxOut:'out',ctxMax:'max',
+  copyFailed:'Error al copiar, seleccione y copie manualmente',
+  settingsBtn:'Ajustes',activePreset:'Activo',applyBtn:'Aplicar',applyingPreset:'Aplicando {name}...',presetApplied:'Aplicado',applyFailed:'Error al aplicar',confirmDeletePreset:'¿Eliminar preset "{name}"?',presetDeleted:'Eliminado: {name}',
+  timeoutMsg:'Tiempo de espera agotado. Por favor, actualice la página e intente de nuevo.',
 };
 _I18N.ru={
   loading:'Загрузка...',networkError:'Ошибка сети',loadFailed:'Не удалось загрузить',save:'Сохранить',test:'Проверить',saved:'Сохранено',saveFailed:'Ошибка сохранения',noChange:'Без изменений',connOk:'Подключено',connFail:'Ошибка: ',testing:'Проверка...',saving:'Сохранение...',unAuth:'Не авторизован',error:'Ошибка: ',
-  pwdPlaceholder:'Пароль',loginBtn:'Войти',docLink:'📜 Документация',
+  pwdPlaceholder:'Пароль',loginBtn:'Войти',docLink:'Документация',
   sidebarSessions:'Сессии',sidebarTools:'Инструменты',sidebarReflection:'Инсайты',sidebarDocs:'Документы',sidebarSettings:'Настройки',
   newSessPlaceholder:'Название (необяз.)',newSessBtn:'Новая',noSessions:'Нет сессий',curSess:'Текущая',deleteSess:'Удалить сессию?',clearSess:'Удалить все сессии?',
   tabReflog:'Размышления',tabExp:'Опыт',tabRules:'Правила',noReflog:'Нет размышлений',noExp:'Нет опыта',noRules:'Нет правил',refresh:'↻ Обновить',
-  labelModelName:'Название модели',labelApiEndpoint:'API Endpoint (опц., по умолч. DeepSeek)',labelApiKey:'API Key',labelSearchKey:'Tavily API Key',subtitleImageGen:'🖼️ Генерация изображений',labelImgModel:'Модель',labelImgEndpoint:'API Endpoint',labelImgKey:'API Key',subtitleTts:'🔊 TTS голос',labelTtsModel:'Модель',labelTtsVoice:'Голос',labelTtsEndpoint:'API Endpoint',labelTtsKey:'API Key',labelTtsToggle:'Чтение',clearAll:'✖ Очистить всё',logout:'Выйти',offline:'Офлайн',loginTitle:'Войти',confirmLogout:'Подтвердить выход?',
+  labelModelName:'Название модели',labelApiEndpoint:'API Endpoint (опц., по умолч. DeepSeek)',labelApiKey:'API Key',labelSearchKey:'Tavily API Key',subtitleImageGen:'Генерация изображений',labelImgModel:'Модель',labelImgEndpoint:'API Endpoint',labelImgKey:'API Key',subtitleTts:'TTS голос',labelTtsModel:'Модель',labelTtsVoice:'Голос',labelTtsEndpoint:'API Endpoint',labelTtsKey:'API Key',labelTtsToggle:'Чтение',clearAll:'Очистить всё',logout:'Выйти',offline:'Офлайн',loginTitle:'Войти',confirmLogout:'Подтвердить выход?',
   emptyChat:'Ожидание {name}...',sendBtn:'Отправить',inputPlaceholder:'Введите сообщение…',defaultSession:'Сессия по умолчанию',
-  copy:'📋 Копировать',copied:'✅ Скопировано',
+  copy:'Копировать',copied:'Скопировано',
   langZh:'中文',langEn:'English',
-  viewDocs:'📄 Документация',
+  viewDocs:'Документация',
   noTools:'Нет инструментов',
   uploading:'Загрузка {name}...',uploadedFile:'Файл загружен: {name}',parseFailed:'Ошибка парсинга',connFailed:'Ошибка подключения',switchProfile:'Переключение...',switchFailed:'Ошибка: ',unknownError:'Неизвестная ошибка',msgCount:'{n} сообщений',
   tabLlm:'LLM',tabImg:'Изображение',tabTts:'TTS',tabSearch:'Поиск',tabProfile:'Профиль',presets:'Пресеты',presetNamePlaceholder:'Имя пресета',savePresetBtn:'Сохранить как пресет',
-  subtitleTts:'🔊 TTS голос',subtitlePresets:'📋 Управление пресетами',selectPreset:'Выбрать',
+  subtitleTts:'TTS голос',subtitlePresets:'Управление пресетами',selectPreset:'Выбрать',
   titleCreateProfile:'Создать профиль',labelProfileName:'Имя профиля',phProfileName:'напр., Помощник, Учитель, Программист',labelProfileTag:'Теги (через запятую)',phProfileTag:'напр., Добрый, Профессионал, Юмор',
   labelProfileStyle:'Стиль общения',phProfileStyle:'напр., Краткий, предпочитает короткие фразы, иногда шутит',labelProfileRules:'Основные правила',phProfileRules:'напр., Всегда говорить правду, не давать сомнительных обещаний',
   btnCreateProfile:'Создать профиль',titleExistingProfiles:'Существующие профили',noCustomProfiles:'Нет пользовательских профилей',deleteBtn:'Удалить',confirmDeleteProfile:'Удалить профиль "{name}"?',
-  profileNameRequired:'Пожалуйста, введите имя',profileCreated:'✓ Создано: {name}',profileCreateFailed:'Ошибка создания',profileCreateFailedWith:'Ошибка: {error}',creating:'Создание...',
+  profileNameRequired:'Пожалуйста, введите имя',profileCreated:'Создано: {name}',profileCreateFailed:'Ошибка создания',profileCreateFailedWith:'Ошибка: {error}',creating:'Создание...',
   configured:'Настроено',notConfigured:'Не настроено',noKey:'Нет ключа',noPresets:'Нет пресетов',wrongPassword:'Неверный пароль',
+  ctxLabel:'Контекст',ctxMessages:'Сообщения',ctxIn:'in',ctxOut:'out',ctxMax:'max',
+  copyFailed:'Не удалось скопировать, выберите и скопируйте вручную',
+  settingsBtn:'Настройки',activePreset:'Активен',applyBtn:'Применить',applyingPreset:'Применение {name}...',presetApplied:'Применено',applyFailed:'Ошибка применения',confirmDeletePreset:'Удалить пресет "{name}"?',presetDeleted:'Удалено: {name}',
+  timeoutMsg:'Время ожидания истекло. Пожалуйста, обновите страницу и попробуйте снова.',
 };
 
 _I18N.lzh={
   loading:'載之⋯',networkError:'網不通',loadFailed:'載不成',save:'存之',test:'試',saved:'已存',saveFailed:'存不成',noChange:'無更',connOk:'已連',connFail:'不通: ',testing:'試中⋯',saving:'存中⋯',unAuth:'未驗',error:'謬: ',
-  pwdPlaceholder:'密符',loginBtn:'入',docLink:'📜 書',
+  pwdPlaceholder:'密符',loginBtn:'入',docLink:'書',
   sidebarSessions:'談',sidebarTools:'器',sidebarReflection:'思',sidebarDocs:'文',sidebarSettings:'設',
   newSessPlaceholder:'名（可無）',newSessBtn:'新',noSessions:'尚無談',curSess:'今',deleteSess:'刪此談？',clearSess:'盡刪諸談？',
   tabReflog:'省',tabExp:'歷',tabRules:'規',noReflog:'無省',noExp:'無歷',noRules:'無規',refresh:'↻ 更',
-  labelModelName:'模型名',labelApiEndpoint:'API 端（可無，默 DeepSeek）',labelApiKey:'API 鑰',labelSearchKey:'Tavily 搜 API 鑰',subtitleImageGen:'🖼️ 像成',labelImgModel:'模型',labelImgEndpoint:'API 端',labelImgKey:'API 鑰',subtitleTts:'🔊 語音',labelTtsModel:'模型',labelTtsVoice:'聲',labelTtsEndpoint:'API 端',labelTtsKey:'API 鑰',labelTtsToggle:'讀',clearAll:'✖ 盡除諸談',logout:'出',offline:'離',loginTitle:'入',confirmLogout:'確認出？',
+  labelModelName:'模型名',labelApiEndpoint:'API 端（可無，默 DeepSeek）',labelApiKey:'API 鑰',labelSearchKey:'Tavily 搜 API 鑰',subtitleImageGen:'像成',labelImgModel:'模型',labelImgEndpoint:'API 端',labelImgKey:'API 鑰',subtitleTts:'語音',labelTtsModel:'模型',labelTtsVoice:'聲',labelTtsEndpoint:'API 端',labelTtsKey:'API 鑰',labelTtsToggle:'讀',clearAll:'盡除諸談',logout:'出',offline:'離',loginTitle:'入',confirmLogout:'確認出？',
   emptyChat:'待{name}⋯',sendBtn:'發',inputPlaceholder:'書言⋯',defaultSession:'預設談',
-  copy:'📋 錄',copied:'✅ 已錄',
+  copy:'錄',copied:'已錄',
   langZh:'中文',langEn:'English',
-  viewDocs:'📄 覽書',
+  viewDocs:'覽書',
   noTools:'無器',
   uploading:'傳{name}中⋯',uploadedFile:'已傳: {name}',parseFailed:'解不成',connFailed:'連不至',switchProfile:'易中⋯',switchFailed:'易不成: ',unknownError:'不知謬',msgCount:'書{n}通',
   tabLlm:'LLM',tabImg:'像',tabTts:'語',tabSearch:'搜',tabProfile:'志',presets:'預設',presetNamePlaceholder:'預設名',savePresetBtn:'存爲預設',
-  subtitleTts:'🔊 語音',subtitlePresets:'📋 預設管理',selectPreset:'擇預設',
+  subtitleTts:'語音',subtitlePresets:'預設管理',selectPreset:'擇預設',
   titleCreateProfile:'立自定志',labelProfileName:'志名',phProfileName:'如：佐、師、編程者',labelProfileTag:'標（以逗號分）',phProfileTag:'如：柔、專、諧',
   labelProfileStyle:'語風',phProfileStyle:'如：言簡，喜短句，偶作謔',labelProfileRules:'核心規',phProfileRules:'如：恆言實，不作無握之诺',
   btnCreateProfile:'立志',titleExistingProfiles:'已有志',noCustomProfiles:'無自定志',deleteBtn:'刪',confirmDeleteProfile:'刪志 "{name}" ？',
-  profileNameRequired:'請入名',profileCreated:'✓ 已立: {name}',profileCreateFailed:'立不成',profileCreateFailedWith:'立不成: {error}',creating:'立中⋯',
+  profileNameRequired:'請入名',profileCreated:'已立: {name}',profileCreateFailed:'立不成',profileCreateFailedWith:'立不成: {error}',creating:'立中⋯',
   configured:'已設',notConfigured:'未設',noKey:'無鑰',noPresets:'無預設',wrongPassword:'密符謬',
+  ctxLabel:'上下文',ctxMessages:'消息',ctxIn:'入',ctxOut:'出',ctxMax:'極',
+  copyFailed:'錄不成，請手擇錄之',
+  settingsBtn:'設',activePreset:'生效',applyBtn:'用',applyingPreset:'用 {name} 中⋯',presetApplied:'已用',applyFailed:'用不成',confirmDeletePreset:'刪預設 "{name}" ？',presetDeleted:'已刪: {name}',
+  timeoutMsg:'候久矣，請新載此頁重試。',
 };
 
 var _LANG='en';
@@ -700,8 +922,8 @@ var _LANG='en';
 var bl=(navigator.language||'').toLowerCase();_LANG='en';var lm={"zh":'zh',"ja":'ja',"ko":'ko',"fr":'fr',"de":'de',"es":'es',"pt":'pt',"ru":'ru',"lzh":"lzh"};for(var lk in lm){if(bl.indexOf(lk)===0){_LANG=lm[lk];break}}var sl=LS.getItem('hedera_lang');if(sl&&_I18N[sl])_LANG=sl
 })();
 function _t(k){var m=_I18N[_LANG];var v=m&&m[k];if(v!==undefined)return v;var em=_I18N['en'];return em&&em[k]!==undefined?em[k]:k}
-function setLang(l){if(!_I18N[l])return;_LANG=l;LS.setItem('hedera_lang',l);applyI18n();updateEmptyText()}
-function applyI18n(){document.querySelectorAll('[data-i18n]').forEach(function(el){var k=el.getAttribute('data-i18n');if(el.tagName==='INPUT'||el.tagName==='TEXTAREA')el.placeholder=_t(k);else el.textContent=_t(k)});$('sfLabel')&&($('sfLabel').textContent=_t('offline'))}
+function setLang(l){if(!_I18N[l])return;_LANG=l;LS.setItem('hedera_lang',l);applyI18n();updateEmptyText();loadSessions();loadReflectionData()}
+function applyI18n(){document.querySelectorAll('[data-i18n]').forEach(function(el){var k=el.getAttribute('data-i18n');if(el.tagName==='INPUT'||el.tagName==='TEXTAREA')el.placeholder=_t(k);else el.textContent=_t(k)})}
 
 var chat=$('chat'),input=$('input'),sendBtn=$('sendBtn');
 var sidebar=$('sidebar'),overlay=$('overlay');
@@ -751,7 +973,7 @@ function renderFileButtons(container,files){
     var href=url.indexOf('://')>=0?url:(window.location.origin+url);
     var div=document.createElement('div');
     div.style.cssText='display:inline-flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--accent);border-radius:6px;padding:6px 10px;margin-top:6px;font-size:12px';
-    div.innerHTML='<span style="font-size:14px;margin-right:4px">📄</span><span style="font-size:12px">'+fn+'</span><a href="'+href+'" target="_blank" style="background:var(--accent);color:#fff;border:none;border-radius:4px;padding:2px 10px;font-size:12px;cursor:pointer;text-decoration:none;margin-left:8px" download>\u2b07 \u4e0b\u8f7d</a>';
+    div.innerHTML='<span style="font-size:12px">'+escapeHtml(fn)+'</span><a href="'+escapeHtml(href)+'" target="_blank" style="background:var(--accent);color:#fff;border:none;border-radius:4px;padding:2px 10px;font-size:12px;cursor:pointer;text-decoration:none;margin-left:8px" download>下载</a>';
     container.appendChild(div);
   }
 }
@@ -807,8 +1029,8 @@ function decorateCodeBlocks(el){
           navigator.clipboard.writeText(txt).then(function(){
             btn.textContent=_t('copied');btn.classList.add('copied');
             setTimeout(function(){btn.textContent=_t('copy');btn.classList.remove('copied')},2000);
-          }).catch(function(){alert('复制失败，请手动选择复制')});
-        } else {alert('复制失败，请手动选择复制')}
+          }).catch(function(){alert(_t('copyFailed'))});
+        } else {alert(_t('copyFailed'))}
       };
     }(codeText,copyBtn);
     header.appendChild(copyBtn);
@@ -842,17 +1064,25 @@ document.querySelectorAll('.sb-head').forEach(function(h){
     arrow.classList.toggle('open');
     var sec=this.getAttribute('data-section');
     if(sec==='tools'&&body.classList.contains('open'))loadTools();
-    if(sec==='settings'&&body.classList.contains('open'))loadConfig();
-    $('clearAllBtn').onclick=function(){if(!confirm(_t('clearSess')))return;var x=new XMLHttpRequest();x.open('POST',HOST+'/sessions/clear_all');x.setRequestHeader('Authorization','Bearer '+TOKEN);x.onload=function(){if(x.status===200){chat.innerHTML='';loadSessions();}};x.send();};
     if(sec==='reflection'&&body.classList.contains('open'))loadReflection();
   };
 });
+
+// clearAllBtn 独立绑定（不在 click handler 内重复注册）
+$('clearAllBtn').onclick=function(){if(!confirm(_t('clearSess')))return;var x=new XMLHttpRequest();x.open('POST',HOST+'/sessions/clear_all');x.setRequestHeader('Authorization','Bearer '+TOKEN);x.onload=function(){if(x.status===200){chat.innerHTML='';loadSessions();}};x.send();};
+
+// 设置弹窗
+function openSettings(){$('settingsModal').classList.add('show');loadConfig()}
+function closeSettings(){$('settingsModal').classList.remove('show')}
+if($('settingsBtn'))$('settingsBtn').onclick=openSettings;
+if($('modalClose'))$('modalClose').onclick=closeSettings;
+if($('modalBg'))$('modalBg').onclick=closeSettings;
 
 // ─── 登录 ───
 var loginOverlay=$('login');
 function showLogin(){loginOverlay.style.display='flex'}
 function hideLogin(){loginOverlay.style.display='none'}
-if(TOKEN)hideLogin();
+if(TOKEN){hideLogin();try{loadRefBadges();setInterval(loadRefBadges,60000)}catch(e){}}
 
 function doLogin(pwd){
   $('loginErr').style.display='none';
@@ -863,10 +1093,10 @@ function doLogin(pwd){
     var d=JSON.parse(x.responseText);
     if(d.token){
       TOKEN=d.token;LS.setItem('hedera_token',TOKEN);
-      hideLogin();initChat();loadSessions();
+      hideLogin();initChat();loadSessions();try{loadRefBadges();setInterval(loadRefBadges,60000)}catch(e){}
     }else{$('loginErr').textContent=_LANG==='zh'?'密码错误':'Wrong password';$('loginErr').style.display='block'}
   };
-  x.onerror=function(){$('loginErr').textContent='连接失败';$('loginErr').style.display='block'};
+  x.onerror=function(){$('loginErr').textContent=_t('connFailed');$('loginErr').style.display='block'};
   x.send(JSON.stringify({password:pwd}));
 }
 $('loginBtn').onclick=function(){var p=$('pwd').value.trim();doLogin(p)};
@@ -902,26 +1132,25 @@ function typeQuote(text){
 
     // 逐字输出
     var idx=0;
-    var ti=setInterval(function(){
+    function typeNext(){
       if(idx<text.length){
         el.textContent=text.slice(0,idx+1);
         var c=text.charAt(idx);
-        // 暂停一下对标点
         var delay=(c==='，'||c==='。'||c==='！'||c==='？'||c==='——')?120:30;
         idx++;
-        if(ti) clearInterval(ti);
-        ti=setInterval(arguments.callee,delay);
+        setTimeout(typeNext,delay);
       }else{
-        clearInterval(ti);
         el.style.cursor='none';
         // 末尾闪烁光标
         el.textContent=text+'|';
-        var blink=setInterval(function(){
+        if(window._quoteBlinkInterval)clearInterval(window._quoteBlinkInterval);
+        window._quoteBlinkInterval=setInterval(function(){
           if(el.textContent.endsWith('|')) el.textContent=el.textContent.slice(0,-1);
           else el.textContent=text+'|';
         },500);
       }
-    },30);
+    }
+    typeNext();
   },200);
 }
 
@@ -950,13 +1179,39 @@ function updateSessionLabel(){
     idx++;
     var txt=label.slice(0,idx);
     // 把光标放在已输入文字的末尾
-    el.innerHTML=txt+'<span style="opacity:0.5">|</span>';
+    el.innerHTML=escapeHtml(txt)+'<span style="opacity:0.5">|</span>';
     if(idx>=label.length){
       clearInterval(window._sessLabelTimer);
       window._sessLabelTimer=null;
-      el.innerHTML=txt;
+      el.innerHTML=escapeHtml(txt);
     }
   },40);
+}
+
+// 异步获取 LLM 生成的会话标题（多次轮询）
+function _fetchSessionTitle(sid,attempt){
+  attempt=attempt||0;
+  if(attempt>10)return;
+  var x=new XMLHttpRequest();
+  x.open('GET',HOST+'/sessions/'+encodeURIComponent(sid));
+  x.setRequestHeader('Authorization','Bearer '+TOKEN);
+  x.onload=function(){
+    try{
+      var d=JSON.parse(x.responseText);
+      if(d.title&&d.title.length>=2){
+        SESSION_LABEL=d.title;
+        LS.setItem('hedera_session_label',SESSION_LABEL);
+        updateSessionLabel();
+        loadSessions();
+      }else if(attempt<10){
+        setTimeout(function(){_fetchSessionTitle(sid,attempt+1)},3000);
+      }
+    }catch(e){}
+  };
+  x.onerror=function(){
+    if(attempt<10)setTimeout(function(){_fetchSessionTitle(sid,attempt+1)},3000);
+  };
+  x.send();
 }
 
 function loadSessionMessages(sid){
@@ -1090,7 +1345,9 @@ function initChat(){
     if($('attachBtn'))$('attachBtn').disabled=false;
     updateSessionLabel();loadSessionMessages(SESSION_ID);loadSessions();input.focus();
   }
-  check();setInterval(check,10000);
+  if(window._checkInterval)clearInterval(window._checkInterval);
+  check();window._checkInterval=setInterval(check,10000);
+  if(REFRESH_INTERVAL)clearInterval(REFRESH_INTERVAL);
   loadNewSessProfiles();
   updateEmptyText();
   if(typeof loadTtsMode==='function')loadTtsMode();
@@ -1127,7 +1384,7 @@ function addMsg(text,role,t,files){
     setMsgContent(d,text);
     chat.scrollTop=chat.scrollHeight;
   }
-  console.log('DL_DEBUG: files='+fileList.length+' role='+role);
+
   // 文件下载按钮（仅非打字场景或打字完成后已渲染）
   if(!(t&&role==='bot') && fileList.length>0){
     renderFileButtons(d,fileList);
@@ -1167,7 +1424,7 @@ function showToolCall(name, args, status, errMsg){
       _progressEl.style.fontSize='13px';
       chat.appendChild(_progressEl);
     }
-    _progressEl.textContent='⏳ '+args.text;
+    _progressEl.textContent=args.text;
     chat.scrollTop=chat.scrollHeight;
     return;
   }
@@ -1191,7 +1448,7 @@ function showToolCall(name, args, status, errMsg){
   var html='';
   for(var i=0;i<_toolCalls.length;i++){
     var tc=_toolCalls[i];
-    var icon=tc.status==='success'?'✅':tc.status==='error'?'⚠️':'⏳';
+    var icon=tc.status==='success'?'+':tc.status==='error'?'!':'o';
     var color=tc.status==='success'?'#6c8':tc.status==='error'?'#c66':'var(--dim)';
     var argsPreview='';
     if(tc.args&&typeof tc.args==='object'){
@@ -1224,6 +1481,9 @@ function send(){
   if(LOADING)return;
   // 有文件时允许不输入文本
   if(!text&&!_pendingFiles.length)return;
+  // 立即设置LOADING防止重复提交
+  LOADING=true;
+  sendBtn.disabled=true;
   // 没有会话时自动创建
   if(!SESSION_ID){
     var cx=new XMLHttpRequest();
@@ -1322,10 +1582,12 @@ function _doSend(text,files){
               SESSION_ID=ev.session_id;LS.setItem('hedera_session_id',SESSION_ID);
             }
             loadSessions();
-            // 使用后端自动生成的标题（第一条问答后）
-            if(ev.title&&!SESSION_LABEL){
-              SESSION_LABEL=ev.title;LS.setItem('hedera_session_label',SESSION_LABEL);updateSessionLabel();
-            }else if(!SESSION_LABEL&&text){SESSION_LABEL=text.slice(0,40);LS.setItem('hedera_session_label',SESSION_LABEL);updateSessionLabel();}
+            // 异步获取 LLM 生成的标题（多次轮询）
+            if(!SESSION_LABEL){
+              SESSION_LABEL=text.slice(0,40);LS.setItem('hedera_session_label',SESSION_LABEL);updateSessionLabel();
+              var _sid=ev.session_id||SESSION_ID;
+              if(_sid)setTimeout(function(){_fetchSessionTitle(_sid,0)},2000);
+            }
             input.focus();
           }else if(ev.type==='error'){
             foundDone=true;
@@ -1340,8 +1602,8 @@ function _doSend(text,files){
         if(x.status!==0){
           hideTyping();removeToolIndicator();
           LOADING=false;sendBtn.disabled=false;
-          try{var d=JSON.parse(raw);if(d.response)addMsg(d.response,'bot',true,d.files);else addMsg('连接失败，刷新重试','bot');
-          }catch(e){addMsg('连接失败，刷新重试','bot')}
+          try{var d=JSON.parse(raw);if(d.response)addMsg(d.response,'bot',true,d.files);else addMsg(_t('connFailed')+'\uFF0C'+_t('refresh'),'bot');
+          }catch(e){addMsg(_t('connFailed')+'\uFF0C'+_t('refresh'),'bot')}
           input.focus();
         }
       }
@@ -1417,7 +1679,7 @@ function _doSend(text,files){
   };
   x.send(JSON.stringify({message:text,session_id:SESSION_ID||null}));
 }
-input.onkeydown=function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}};
+input.onkeydown=function(e){if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();send()}};
 input.oninput=function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'};
 sendBtn.onclick=send;
 
@@ -1440,7 +1702,7 @@ function _pollProgress(){
   p.send();
 }
 function _pollForResponse(sid,attempt){
-  if(attempt>150){hideTyping();LOADING=false;sendBtn.disabled=false;addMsg('等待超时，请刷新页面重试。','bot');return;}
+  if(attempt>150){hideTyping();LOADING=false;sendBtn.disabled=false;addMsg(_t('timeoutMsg'),'bot');return;}
   setTimeout(function(){
     var px=new XMLHttpRequest();
     px.open('GET',HOST+'/sessions/'+encodeURIComponent(sid)+'/messages');
@@ -1574,7 +1836,7 @@ function loadTtsMode(){
   x.setRequestHeader('Authorization','Bearer '+TOKEN);
   x.onload=function(){try{
     var d=JSON.parse(x.responseText);
-    _ttsApiMode=!!(d.tts&&d.tts.enabled&&d.tts.api_key_masked&&d.tts.api_key_masked!=='未配置');
+    _ttsApiMode=!!(d.tts&&d.tts.enabled&&d.tts.api_key_masked&&d.tts.api_key_masked!==_t('notConfigured'));
   }catch(e){}};
   x.send();
 }
@@ -1685,9 +1947,9 @@ function _renderFilePreview(){
   var html='';
   for(var i=0;i<_pendingFiles.length;i++){
     html+='<div class="file-chip" data-idx="'+i+'">'+
-      '<span class="fname">'+_escHtml(_pendingFiles[i].name)+'</span>'+
+      '<span class="fname">'+escapeHtml(_pendingFiles[i].name)+'</span>'+
       '<span class="fsize">'+_pendingFiles[i].size+'</span>'+
-      '<button class="fremove" onclick="_removeFile('+i+')">&times;</button></div>';
+      '<button type="button" class="fremove" onclick="_removeFile('+i+')">&times;</button></div>';
   }
   container.innerHTML=html;
 }
@@ -1770,12 +2032,13 @@ function updateSessList(){
 }
 
 function loadSessions(){
+  $('sessList').innerHTML='<div class="empty-hint">'+_t('loading')+'</div>';
   var x=new XMLHttpRequest();
   x.open('GET',HOST+'/sessions');
   x.setRequestHeader('Authorization','Bearer '+TOKEN);
   x.onload=function(){
     if(x.status===401){TOKEN='';LS.removeItem('hedera_token');showLogin();return}
-    if(x.status!==200){$('sessList').innerHTML='<div class="empty-hint">加载失败</div>';return}
+    if(x.status!==200){$('sessList').innerHTML='<div class="empty-hint">'+_t('loadFailed')+'</div>';return}
     var d=JSON.parse(x.responseText);
     var sessions=(d.sessions||[]).filter(function(s){return s.session_id&&(s.message_count>0||s.session_id===SESSION_ID)});
     var html='';
@@ -1789,11 +2052,11 @@ function loadSessions(){
       else if(pf.indexOf('冬青')>=0)pname='冬青';
       var label=s.title||pname||s.session_id.slice(0,24);
       var msgs=s.message_count||0;
-      var last=(s.last_active||'').replace('2026-','');
+      var last=(s.last_active||'').replace(/^\d{4}-/,'');
       var slabel=s.title||'';
-      html+='<div class="session-item'+(active?' active':'')+'" data-sid="'+s.session_id+'" data-title="'+slabel+'" data-profile="'+pname+'">';
-      html+='<div class="sline"><span class="sname">'+label+'</span><span class="sbadge'+(active?' show':'')+'">当前</span><button class="sdel" data-del="'+s.session_id+'">&times;</button></div>';
-      html+='<div class="smeta">'+msgs+' 条消息 <span style="color:var(--accent);font-size:10px">'+pname+'</span></div></div>';
+      html+='<div class="session-item'+(active?' active':'')+'" data-sid="'+s.session_id+'" data-title="'+escapeHtml(slabel)+'" data-profile="'+escapeHtml(pname)+'">';
+      html+='<div class="sline"><span class="sname">'+escapeHtml(label)+'</span><span class="sbadge'+(active?' show':'')+'">'+_t('curSess')+'</span><button type="button" class="sdel" data-del="'+s.session_id+'">&times;</button></div>';
+      html+='<div class="smeta">'+msgs+' '+_t('msgCount').replace('{n}','')+' <span style="color:var(--accent);font-size:10px">'+escapeHtml(pname)+'</span></div></div>';
     }
     $('sessList').innerHTML=html;
     // 绑定事件
@@ -1891,15 +2154,32 @@ function loadTools(){
         html+='<div class="tool-item"><div class="tname">'+d.tools[i].name+'<span class="tag">可用</span></div>'+(d.tools[i].description?'<div class="tdesc">'+d.tools[i].description+'</div>':'')+'</div>';
       }else html='<div class="empty-hint">'+_t('noTools')+'</div>';
       $('toolList').innerHTML=html;
-    }else $('toolList').innerHTML='<div class="empty-hint">加载失败</div>';
+    }else $('toolList').innerHTML='<div class="empty-hint">'+_t('loadFailed')+'</div>';
   };
   x.onerror=function(){$('toolList').innerHTML='<div class="empty-hint">'+_t('networkError')+'</div>'};
   x.send();
 }
 
-// ─── 设置 ───
 // ─── 自省 ───
 var REFRESH_TAB='reflog';
+
+function loadRefBadges(){
+  var x=new XMLHttpRequest();
+  x.open('GET',HOST+'/api/status');
+  x.setRequestHeader('Authorization','Bearer '+TOKEN);
+  x.onload=function(){
+    if(x.status!==200)return;
+    var d=JSON.parse(x.responseText);
+    var rc=(d.reflections||[]).length;
+    var ec=(d.experiences||[]).length;
+    var rlc=d.rules_count||(d.rules||[]).length;
+    var bR=$('badgeRef'),bE=$('badgeExp'),bRl=$('badgeRules');
+    if(bR){bR.textContent='\u53cd\u601e'+rc;bR.classList.toggle('has-data',rc>0)}
+    if(bE){bE.textContent='\u84b8\u998e'+ec;bE.classList.toggle('has-data',ec>0)}
+    if(bRl){bRl.textContent='\u51c6\u5219'+rlc;bRl.classList.toggle('has-data',rlc>0)}
+  };
+  x.send();
+}
 var REFRESH_INTERVAL=null;
 
 function loadReflection(){
@@ -1917,39 +2197,40 @@ function loadReflection(){
 }
 
 function loadReflectionData(){
+  $('reflectionContent').innerHTML='<div class="empty-hint">'+_t('loading')+'</div>';
   var x=new XMLHttpRequest();
   x.open('GET',HOST+'/api/status');
   x.setRequestHeader('Authorization','Bearer '+TOKEN);
   x.onload=function(){
-    if(x.status!==200){$('reflectionContent').innerHTML='<div class="empty-hint">加载失败</div>';return}
+    if(x.status!==200){$('reflectionContent').innerHTML='<div class="empty-hint">'+_t('loadFailed')+'</div>';return}
     var d=JSON.parse(x.responseText);
     var html='';
     var tab=REFRESH_TAB;
     if(tab==='reflog'){
       var logs=d.reflections||[];
-      if(!logs.length)html='<div class="empty-hint">暂无反思</div>';
+      if(!logs.length)html='<div class="empty-hint">'+_t('noReflog')+'</div>';
       else for(var i=logs.length-1;i>=0;i--){
         var l=logs[i];
-        var time=l.split('【')[1]?l.split('【')[1].split('】')[0]||'':'';
-        var content=l.replace('【'+time+'】','');
-        html+='<div class="ref-item"><div class="rtime">'+time+'</div><div class="rcontent">'+content.slice(0,200)+'</div></div>';
+        var time=l.split('\u3010')[1]?l.split('\u3010')[1].split('\u3011')[0]||'':'';
+        var content=l.replace('\u3010'+time+'\u3011','');
+        html+='<div class="ref-item"><div class="rtime">'+escapeHtml(time)+'</div><div class="rcontent">'+escapeHtml(content.slice(0,200))+'</div></div>';
       }
     }else if(tab==='experience'){
       var exps=d.experiences||[];
-      if(!exps.length)html='<div class="empty-hint">暂无蒸馏</div>';
+      if(!exps.length)html='<div class="empty-hint">'+_t('noExp')+'</div>';
       else for(var i=exps.length-1;i>=0;i--){
         var e=exps[i];
         var rules=(e.rules||[]).join('; ');
-        html+='<div class="ref-item"><div class="rtime">'+e.time+'</div><div class="rcontent">'+rules.slice(0,200)+'</div></div>';
+        html+='<div class="ref-item"><div class="rtime">'+escapeHtml(e.time||'')+'</div><div class="rcontent">'+escapeHtml(rules.slice(0,200))+'</div></div>';
       }
     }else if(tab==='rules'){
       var rules=d.rules||[];
-      if(!rules.length)html='<div class="empty-hint">暂无准则</div>';
+      if(!rules.length)html='<div class="empty-hint">'+_t('noRules')+'</div>';
       else for(var i=0;i<rules.length;i++){
-        html+='<div class="ref-item"><div class="rcontent">'+(i+1)+'. '+rules[i]+'</div></div>';
+        html+='<div class="ref-item"><div class="rcontent">'+(i+1)+'. '+escapeHtml(rules[i])+'</div></div>';
       }
     }
-    html+='<div class="ref-refresh" id="refRefreshBtn">↻ 刷新</div>';
+    html+='<div class="ref-refresh" id="refRefreshBtn">'+_t('refresh')+'</div>';
     $('reflectionContent').innerHTML=html;
     var btn=$('refRefreshBtn');
     if(btn)btn.onclick=function(){loadReflectionData()};
@@ -1975,7 +2256,11 @@ function loadNewSessProfiles(){
       opt.textContent=profiles[i].name;
       sel.appendChild(opt);
     }
-    // 默认选中第一个（冬青）并更新空屏文字
+    if(!sel.dataset.customized){
+      initCustomSelect('newSessProfile');
+    }else if(sel._customRefresh){
+      sel._customRefresh();
+    }
     if(profiles.length>0){
       CURRENT_PROFILE_NAME=profiles[0].name;
       updateEmptyText();
@@ -1987,38 +2272,6 @@ function loadNewSessProfiles(){
 // ─── 空屏文字（随人格变化） ───
 function updateEmptyText(){
   document.documentElement.style.setProperty('--empty-text','"'+_t('emptyChat').replace('{name}',CURRENT_PROFILE_NAME)+'"');
-}
-
-function switchProfile(file,name){
-  $('profileList').innerHTML='<div class="empty-hint">切换中...</div>';
-  var x=new XMLHttpRequest();
-  x.open('POST',HOST+'/api/profile');
-  x.setRequestHeader('Content-Type','application/json');
-  x.setRequestHeader('Authorization','Bearer '+TOKEN);
-  x.onload=function(){
-    if(x.status!==200){
-      var d=JSON.parse(x.responseText);
-      alert('切换失败: '+(d.error||'未知错误'));
-      loadProfiles();
-      return;
-    }
-    var d=JSON.parse(x.responseText);
-    // 清除本地消息缓存（人格变了，旧消息上下文不再适用）
-    var keys=[];
-    for(var i=0;i<localStorage.length;i++){
-      var k=localStorage.key(i);
-      if(k.startsWith('hedera_msgs_'))keys.push(k);
-    }
-    keys.forEach(function(k){localStorage.removeItem(k)});
-    // 清空聊天区域，等待新对话
-    chat.innerHTML='';
-    loadProfiles();
-  };
-  x.onerror=function(){
-    alert(_t('networkError'));
-    loadProfiles();
-  };
-  x.send(JSON.stringify({profile:file}));
 }
 
 // ─── 设置 ───
@@ -2052,22 +2305,22 @@ function loadConfig(){
     var tavKey='';
     if(d.search_providers)for(var i=0;i<d.search_providers.length;i++)if(d.search_providers[i].name==='tavily')tavKey=d.search_providers[i].api_key_masked||'';
     $('cfgSummary').innerHTML=
-      '<div><span class="cs-label">LLM:</span> <span class="cs-val">'+(m.name||'?')+'</span> @ <span class="cs-val">'+(m.endpoint||'?').replace(/^https?:\/\//,'')+'</span> <span class="cs-ok">'+(m.api_key_masked==='未配置'?'⚠ 无Key':'✓')+'</span></div>'+
-      '<div><span class="cs-label">图片:</span> <span class="cs-val">'+(ig.model||'?')+'</span> <span class="cs-ok">'+(ig.api_key_masked==='未配置'?'⚠':'✓')+'</span></div>'+
-      '<div><span class="cs-label">TTS:</span> <span class="cs-val">'+(ts.model||'?')+'</span> <span class="cs-ok">'+(ts.api_key_masked==='未配置'?'⚠':'✓')+'</span></div>'+
-      '<div><span class="cs-label">搜索:</span> <span class="cs-val">'+(tavKey==='未配置'?'未配置':'已配置')+'</span></div>';
+      '<div><span class="cs-label">LLM:</span> <span class="cs-val">'+(m.name||'?')+'</span> @ <span class="cs-val">'+(m.endpoint||'?').replace(/^https?:\/\//,'')+'</span> <span class="cs-ok">'+(m.api_key_masked===_t('notConfigured')?'! '+_t('noKey'):':)')+'</span></div>'+
+      '<div><span class="cs-label">'+_t('tabImg')+':</span> <span class="cs-val">'+(ig.model||'?')+'</span> <span class="cs-ok">'+(ig.api_key_masked===_t('notConfigured')?'!':':)')+'</span></div>'+
+      '<div><span class="cs-label">'+_t('tabTts')+':</span> <span class="cs-val">'+(ts.model||'?')+'</span> <span class="cs-ok">'+(ts.api_key_masked===_t('notConfigured')?'!':':)')+'</span></div>'+
+      '<div><span class="cs-label">'+_t('tabSearch')+':</span> <span class="cs-val">'+(tavKey===_t('notConfigured')?_t('notConfigured'):_t('configured'))+'</span></div>';
     // placeholder 更新
-    $('cfgModelKey').placeholder=m.api_key_masked||'未配置';
+    $('cfgModelKey').placeholder=m.api_key_masked||_t('notConfigured');
     if(m.name)$('cfgModelName').placeholder=m.name;
     if(m.endpoint)$('cfgModelEndpoint').placeholder=m.endpoint;
-    $('cfgImgKey').placeholder=ig.api_key_masked||'未配置';
+    $('cfgImgKey').placeholder=ig.api_key_masked||_t('notConfigured');
     if(ig.model)$('cfgImgModel').placeholder=ig.model;
     if(ig.endpoint)$('cfgImgEndpoint').placeholder=ig.endpoint;
-    $('cfgTtsKey').placeholder=ts.api_key_masked||'未配置';
+    $('cfgTtsKey').placeholder=ts.api_key_masked||_t('notConfigured');
     if(ts.model)$('cfgTtsModel').placeholder=ts.model;
     if(ts.voice)$('cfgTtsVoice').placeholder=ts.voice;
     if(ts.endpoint)$('cfgTtsEndpoint').placeholder=ts.endpoint;
-    $('cfgTavilyKey').placeholder=tavKey||'未配置';
+    $('cfgTavilyKey').placeholder=tavKey||_t('notConfigured');
     // 刷新预设列表
     refreshAllPresets();
   };
@@ -2117,7 +2370,7 @@ function _doAutoSave(){
       var r=new XMLHttpRequest();r.open('POST',HOST+'/config/reload');r.setRequestHeader('Authorization','Bearer '+TOKEN);r.send();
       // 闪 ✓ 指示器
       _flashSaveIndicators();
-      setStatus('✓ 已保存并生效','ok');
+      setStatus(_t('presetApplied'),'ok');
       setTimeout(function(){setStatus('')},3000);
     }
   };
@@ -2172,15 +2425,15 @@ window.addEventListener('keydown',function(e){
   }
 });
 
-// ─── 预设管理（后端 JSON 文件 + 卡片 UI）───
+// ─── 预设管理（下拉选择器 UI）───
 var PRESET_CATS={llm:{fields:['cfgModelName','cfgModelEndpoint','cfgModelKey'],nameKey:'cfgModelName'},
   img:{fields:['cfgImgModel','cfgImgEndpoint','cfgImgKey'],nameKey:'cfgImgModel'},
   tts:{fields:['cfgTtsModel','cfgTtsVoice','cfgTtsEndpoint','cfgTtsKey'],nameKey:'cfgTtsModel'}};
 var _presetCache={llm:[],img:[],tts:[]};
 
 function refreshPresetList(cat){
-  var container=$('presetList'+cat.charAt(0).toUpperCase()+cat.slice(1));
-  if(!container)return;
+  var sel=$('presetSelect'+cat.charAt(0).toUpperCase()+cat.slice(1));
+  if(!sel)return;
   var x=new XMLHttpRequest();
   x.open('GET',HOST+'/api/presets');
   x.setRequestHeader('Authorization','Bearer '+TOKEN);
@@ -2189,50 +2442,68 @@ function refreshPresetList(cat){
       var d=JSON.parse(x.responseText);
       var presets=(d.presets&&d.presets[cat])||[];
       _presetCache[cat]=presets;
-      _renderPresetCards(cat,container,presets);
+      _renderPresetSelect(cat,sel,presets);
     }catch(e){}
   };
   x.send();
 }
 
-function _renderPresetCards(cat,container,presets){
-  if(!presets.length){container.innerHTML='<div style="color:var(--dim);font-size:11px;padding:4px 0">暂无预设</div>';return}
-  // 判断哪个预设当前生效（通过比对配置值）
-  var activeIdx=-1;
-  if(_currentConfig){
-    for(var i=0;i<presets.length;i++){
-      var p=presets[i],match=true;
-      var fields=PRESET_CATS[cat].fields;
-      // 简单匹配：预设的 nameKey 字段和当前配置一致
-      var nameField=PRESET_CATS[cat].nameKey;
-      var curVal='';
-      if(cat==='llm')curVal=(_currentConfig.model||{}).name||'';
-      else if(cat==='img')curVal=(_currentConfig.image_gen||{}).model||'';
-      else if(cat==='tts')curVal=(_currentConfig.tts||{}).model||'';
-      if(p[nameField]&&p[nameField]===curVal){activeIdx=i;break}
-    }
-  }
-  var html='';
+function _getActivePresetIdx(cat,presets){
+  if(!_currentConfig||!presets.length)return-1;
+  var nameField=PRESET_CATS[cat].nameKey;
+  var curVal='';
+  if(cat==='llm')curVal=(_currentConfig.model||{}).name||'';
+  else if(cat==='img')curVal=(_currentConfig.image_gen||{}).model||'';
+  else if(cat==='tts')curVal=(_currentConfig.tts||{}).model||'';
   for(var i=0;i<presets.length;i++){
-    var p=presets[i];
-    var isActive=i===activeIdx;
-    html+='<div class="preset-card'+(isActive?' active-preset':'')+'">'+
-      '<span class="pc-name">'+_escHtml(p.name)+'</span>'+
-      '<span class="pc-badge">生效中</span>'+
-      '<button class="pc-btn apply" onclick="applyPreset(\''+cat+'\','+i+')">应用</button>'+
-      '<button class="pc-btn del" onclick="delPreset(\''+cat+'\','+i+')">删除</button>'+
-      '</div>';
+    if(presets[i][nameField]&&presets[i][nameField]===curVal)return i;
   }
-  container.innerHTML=html;
+  return-1;
 }
 
-function _escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function _renderPresetSelect(cat,sel,presets){
+  var activeIdx=_getActivePresetIdx(cat,presets);
+  var activeTag=$('presetActive'+cat.charAt(0).toUpperCase()+cat.slice(1));
+  sel.innerHTML='<option value="" data-i18n="selectPreset">'+_t('selectPreset')+'</option>';
+  for(var i=0;i<presets.length;i++){
+    var opt=document.createElement('option');
+    opt.value=i;
+    opt.textContent=presets[i].name;
+    if(i===activeIdx)opt.textContent+=' *';
+    sel.appendChild(opt);
+  }
+  if(activeIdx>=0)sel.value=String(activeIdx);
+  if(activeTag)activeTag.style.display=activeIdx>=0?'inline':'none';
+  if(!sel.dataset.customized){
+    initCustomSelect(sel.id);
+  }else if(sel._customRefresh){
+    sel._customRefresh();
+  }
+  _updatePresetBtns(cat);
+}
+
+function _updatePresetBtns(cat){
+  var sel=$('presetSelect'+cat.charAt(0).toUpperCase()+cat.slice(1));
+  if(!sel)return;
+  var hasSelection=sel.value!=='';
+  var row=sel.closest('.custom-select')?sel.closest('.custom-select').closest('.preset-row'):sel.closest('.preset-row');
+  if(!row)return;
+  var btns=row.querySelectorAll('.pa-btn');
+  for(var i=0;i<btns.length;i++)btns[i].disabled=!hasSelection;
+}
+
+document.addEventListener('change',function(e){
+  if(e.target.classList.contains('preset-select')){
+    var cat=e.target.id.replace('presetSelect','').toLowerCase();
+    _updatePresetBtns(cat);
+  }
+});
 
 window.savePreset=savePreset;
 function savePreset(cat){
   var nameInput=cat==='llm'?'cfgPresetName':cat==='img'?'cfgPresetNameImg':'cfgPresetNameTts';
   var name=$(nameInput).value.trim();
-  if(!name){setStatus('请输入预设名称','err');return}
+  if(!name){setStatus(_t('presetNamePlaceholder'),'err');return}
   var data={name:name,category:cat};
   var fields=PRESET_CATS[cat].fields;
   for(var i=0;i<fields.length;i++){var el=$(fields[i]);if(el&&el.value.trim())data[fields[i]]=el.value.trim()}
@@ -2243,7 +2514,7 @@ function savePreset(cat){
   x.onload=function(){
     try{var d=JSON.parse(x.responseText);if(d.error){setStatus('保存失败: '+d.error,'err');return}}catch(e){}
     $(nameInput).value='';
-    setStatus('✓ 已保存预设: '+name,'ok');
+    setStatus(_t('presetApplied').replace('{name}',name),'ok');
     setTimeout(function(){setStatus('')},3000);
     refreshPresetList(cat);
   };
@@ -2252,13 +2523,16 @@ function savePreset(cat){
 }
 
 window.applyPreset=applyPreset;
-function applyPreset(cat,idx){
+function applyPreset(cat){
+  var sel=$('presetSelect'+cat.charAt(0).toUpperCase()+cat.slice(1));
+  if(!sel||sel.value==='')return;
+  var idx=parseInt(sel.value,10);
   var p=_presetCache[cat][idx];if(!p)return;
-  // 1. 填入字段
+  // 填入字段
   var fields=PRESET_CATS[cat].fields;
   for(var i=0;i<fields.length;i++){var el=$(fields[i]);if(el&&p[fields[i]])el.value=p[fields[i]]}
-  // 2. 后端应用 + 重载
-  setStatus('应用 '+p.name+' 中...');
+  // 后端应用 + 重载
+  setStatus(_t('applyingPreset').replace('{name}',p.name));
   var x=new XMLHttpRequest();
   x.open('POST',HOST+'/api/presets/apply');
   x.setRequestHeader('Content-Type','application/json');
@@ -2268,25 +2542,28 @@ function applyPreset(cat,idx){
     r.open('POST',HOST+'/config/reload');
     r.setRequestHeader('Authorization','Bearer '+TOKEN);
     r.onload=function(){
-      setStatus('✓ '+p.name+' 已生效','ok');
+      setStatus(p.name+' '+_t('presetApplied'),'ok');
       setTimeout(function(){setStatus('')},3000);
       loadConfig();
     };
     r.send();
   };
-  x.onerror=function(){setStatus('应用失败','err')};
+  x.onerror=function(){setStatus(_t('applyFailed'),'err')};
   x.send(JSON.stringify({name:p.name,category:cat}));
 }
 
 window.delPreset=delPreset;
-function delPreset(cat,idx){
+function delPreset(cat){
+  var sel=$('presetSelect'+cat.charAt(0).toUpperCase()+cat.slice(1));
+  if(!sel||sel.value==='')return;
+  var idx=parseInt(sel.value,10);
   var p=_presetCache[cat][idx];if(!p)return;
-  if(!confirm('删除预设 "'+p.name+'" ？'))return;
+  if(!confirm(_t('confirmDeletePreset').replace('{name}',p.name)))return;
   var x=new XMLHttpRequest();
   x.open('DELETE',HOST+'/api/presets/'+encodeURIComponent(p.name));
   x.setRequestHeader('Authorization','Bearer '+TOKEN);
   x.onload=function(){
-    setStatus('✓ 已删除: '+p.name,'ok');
+    setStatus(_t('presetDeleted').replace('{name}',p.name),'ok');
     setTimeout(function(){setStatus('')},3000);
     refreshPresetList(cat);
   };
@@ -2310,17 +2587,17 @@ function loadCustomProfiles(){
         return p.name!=='冬青'&&p.name!=='茯苓';
       });
       if(!custom.length){
-        container.innerHTML='<div style="color:var(--dim);font-size:11px;padding:4px 0">暂无自定义人格</div>';
+        container.innerHTML='<div style="color:var(--dim);font-size:11px;padding:4px 0">'+_t('noCustomProfiles')+'</div>';
         container.onclick=null;
         return;
       }
       var html='';
       for(var i=0;i<custom.length;i++){
         var p=custom[i];
-        html+='<div class="preset-card" data-pname="'+escapeHtml(p.name)+'" style="margin-bottom:4px">'+
-          '<span class="pc-name">'+escapeHtml(p.name)+'</span>'+
-          '<span style="font-size:10px;color:var(--dim);margin-left:auto">'+escapeHtml(p.tag||'')+'</span>'+
-          '<button class="pc-btn del profile-del-btn" style="margin-left:6px">删除</button>'+
+        html+='<div class="preset-row" data-pname="'+escapeHtml(p.name)+'">'+
+          '<span style="flex:1;font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHtml(p.name)+'</span>'+
+          '<span style="font-size:10px;color:var(--dim)">'+escapeHtml(p.tag||'')+'</span>'+
+          '<button type="button" class="pa-btn del profile-del-btn">'+_t('deleteBtn')+'</button>'+
           '</div>';
       }
       container.innerHTML=html;
@@ -2331,7 +2608,7 @@ function loadCustomProfiles(){
         if(!card)return;
         var pname=card.getAttribute('data-pname');
         if(!pname)return;
-        if(!confirm('删除人格 "'+pname+'" ？'))return;
+        if(!confirm(_t('confirmDeleteProfile').replace('{name}',pname)))return;
         var rx=new XMLHttpRequest();
         rx.open('DELETE',HOST+'/api/profiles/'+encodeURIComponent(pname));
         rx.setRequestHeader('Authorization','Bearer '+TOKEN);
@@ -2351,12 +2628,12 @@ function loadCustomProfiles(){
 if($('cfgProfileCreate')){
   $('cfgProfileCreate').onclick=function(){
     var name=$('cfgProfileName').value.trim();
-    if(!name){$('cfgProfileStatus').textContent='请输入名称';$('cfgProfileStatus').className='sstatus err';return}
+    if(!name){$('cfgProfileStatus').textContent=_t('profileNameRequired');$('cfgProfileStatus').className='sstatus err';return}
     var tag=$('cfgProfileTag').value.trim();
     var style=$('cfgProfileStyle').value.trim();
     var rules=$('cfgProfileRules').value.trim();
     var body={name:name,tag:tag,style:style,personality:rules};
-    $('cfgProfileStatus').textContent='创建中...';$('cfgProfileStatus').className='sstatus';
+    $('cfgProfileStatus').textContent=_t('creating');$('cfgProfileStatus').className='sstatus';
     var x=new XMLHttpRequest();
     x.open('POST',HOST+'/api/profiles/create');
     x.setRequestHeader('Content-Type','application/json');
@@ -2365,7 +2642,7 @@ if($('cfgProfileCreate')){
       try{
         var d=JSON.parse(x.responseText);
         if(d.status==='ok'){
-          $('cfgProfileStatus').textContent='✓ 已创建: '+d.name;
+          $('cfgProfileStatus').textContent=_t('profileCreated').replace('{name}',d.name);
           $('cfgProfileStatus').className='sstatus ok';
           $('cfgProfileName').value='';$('cfgProfileTag').value='';
           $('cfgProfileStyle').value='';$('cfgProfileRules').value='';
@@ -2423,12 +2700,12 @@ function refreshContext(){
       var msgs=d.message_count||0;
       if(promptT>0){
         bar.innerHTML=
-          '<span class="ctx-item"><span class="ctx-dot '+color+'"></span> 上下文: '+promptT.toLocaleString()+' in / '+compT.toLocaleString()+' out / '+max.toLocaleString()+' max ('+pct+'%)</span>'+
-          '<span class="ctx-item">消息: '+msgs+'条</span>';
+          '<span class="ctx-item"><span class="ctx-dot '+color+'"></span> '+_t('ctxLabel')+': '+promptT.toLocaleString()+' '+_t('ctxIn')+' / '+compT.toLocaleString()+' '+_t('ctxOut')+' / '+max.toLocaleString()+' '+_t('ctxMax')+' ('+pct+'%)</span>'+
+          '<span class="ctx-item">'+_t('ctxMessages')+': '+msgs+'</span>';
       }else{
         bar.innerHTML=
-          '<span class="ctx-item"><span class="ctx-dot '+color+'"></span> 上下文: ~'+totalT.toLocaleString()+'/'+max.toLocaleString()+' tokens ('+pct+'%)</span>'+
-          '<span class="ctx-item">消息: '+msgs+'条</span>';
+          '<span class="ctx-item"><span class="ctx-dot '+color+'"></span> '+_t('ctxLabel')+': ~'+totalT.toLocaleString()+'/'+max.toLocaleString()+' tokens ('+pct+'%)</span>'+
+          '<span class="ctx-item">'+_t('ctxMessages')+': '+msgs+'</span>';
       }
       bar.style.display='flex';
     }catch(e){}
@@ -2445,13 +2722,68 @@ if(TOKEN)refreshContext();
 
 // ─── 启动 ───
 ;
-// 语言切换器初始化
+// ─── 自定义下拉组件 ───
+function initCustomSelect(selId){
+  var sel=$(selId);
+  if(!sel||sel.dataset.customized)return;
+  sel.dataset.customized='1';
+  var wrapper=document.createElement('div');
+  wrapper.className='custom-select';
+  sel.parentNode.insertBefore(wrapper,sel);
+  wrapper.appendChild(sel);
+  sel.style.display='none';
+  var trigger=document.createElement('div');
+  trigger.className='cs-trigger';
+  trigger.textContent=sel.options[sel.selectedIndex]?sel.options[sel.selectedIndex].text:'';
+  wrapper.appendChild(trigger);
+  var menu=document.createElement('div');
+  menu.className='cs-menu';
+  wrapper.appendChild(menu);
+  function renderOptions(){
+    menu.innerHTML='';
+    for(var i=0;i<sel.options.length;i++){
+      var opt=sel.options[i];
+      var item=document.createElement('div');
+      item.className='cs-option'+(opt.value===sel.value?' active':'');
+      item.textContent=opt.text;
+      item.dataset.value=opt.value;
+      item.onclick=function(){
+        sel.value=this.dataset.value;
+        trigger.textContent=this.textContent;
+        menu.querySelectorAll('.cs-option').forEach(function(o){o.classList.remove('active')});
+        this.classList.add('active');
+        wrapper.classList.remove('open');
+        sel.dispatchEvent(new Event('change'));
+      };
+      menu.appendChild(item);
+    }
+  }
+  renderOptions();
+  trigger.onclick=function(e){
+    e.stopPropagation();
+    var isOpen=wrapper.classList.contains('open');
+    document.querySelectorAll('.custom-select.open').forEach(function(s){s.classList.remove('open')});
+    if(!isOpen){
+      wrapper.classList.add('open');
+      renderOptions();
+    }
+  };
+  document.addEventListener('click',function(){wrapper.classList.remove('open')});
+  menu.onclick=function(e){e.stopPropagation()};
+  sel._customRefresh=function(){
+    trigger.textContent=sel.options[sel.selectedIndex]?sel.options[sel.selectedIndex].text:'';
+    renderOptions();
+  };
+}
+
+// ─── 语言切换器初始化 ───
 (function(){
   var sel=$('langSwitcher');
   if(sel){
     sel.innerHTML='<option value="zh">中文</option>'+'<option value="en">English</option>'+'<option value="ja">日本語</option>'+'<option value="ko">한국어</option>'+'<option value="fr">Français</option>'+'<option value="de">Deutsch</option>'+'<option value="es">Español</option>'+'<option value="ru">Русский</option>'+'<option value="lzh">文言文</option>';
     sel.value=_LANG;
     sel.onchange=function(){setLang(this.value)};
+    initCustomSelect('langSwitcher');
   }
 })();
 applyI18n();

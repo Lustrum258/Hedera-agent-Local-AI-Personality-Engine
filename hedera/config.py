@@ -2,9 +2,11 @@
 Hedera 配置系统
 从 yaml 文件加载配置，合并默认值。
 支持热加载：改 config.yaml 后自动检测，无需重启。
+支持加密存储：从加密存储读取 API Key。
 """
 
 import os
+import re
 import yaml
 import time
 import threading
@@ -13,10 +15,73 @@ from typing import Any
 _DEFAULT_CONFIG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "default.yaml")
 _GLOBAL_SECTION = "__hedera__"
 
+# API Key 管理器（延迟初始化）
+_api_key_manager = None
+
+
+def _get_api_key_manager():
+    """获取 API Key 管理器（延迟初始化）"""
+    global _api_key_manager
+    if _api_key_manager is None:
+        try:
+            from hedera.core.crypto import get_api_key_manager
+            _api_key_manager = get_api_key_manager()
+        except Exception:
+            pass
+    return _api_key_manager
+
+
+def _resolve_env_vars(value: str) -> str:
+    """
+    解析配置中的环境变量引用
+    
+    支持格式：
+    - ${VAR_NAME}: 从环境变量读取
+    - ${VAR_NAME:-default}: 从环境变量读取，不存在则使用默认值
+    - @encrypted:service_name: 从加密存储读取
+    """
+    if not isinstance(value, str):
+        return value
+    
+    # 检查是否是加密存储引用
+    if value.startswith("@encrypted:"):
+        service_name = value[len("@encrypted:"):]
+        manager = _get_api_key_manager()
+        if manager:
+            key = manager.get_api_key(service_name)
+            if key:
+                return key
+        # 如果加密存储中没有，返回空字符串
+        return ""
+    
+    # 解析环境变量引用
+    def replace_env(match):
+        var_expr = match.group(1)
+        if ":-" in var_expr:
+            var_name, default = var_expr.split(":-", 1)
+            return os.environ.get(var_name.strip(), default.strip())
+        else:
+            return os.environ.get(var_expr.strip(), match.group(0))
+    
+    # 匹配 ${VAR_NAME} 或 ${VAR_NAME:-default}
+    pattern = r'\$\{([^}]+)\}'
+    return re.sub(pattern, replace_env, value)
+
+
+def _resolve_config_env_vars(config: dict) -> dict:
+    """递归解析配置中的环境变量引用"""
+    if isinstance(config, dict):
+        return {k: _resolve_config_env_vars(v) for k, v in config.items()}
+    elif isinstance(config, list):
+        return [_resolve_config_env_vars(item) for item in config]
+    elif isinstance(config, str):
+        return _resolve_env_vars(config)
+    return config
+
 
 class ConfigManager:
     """
-    配置管理器，支持热加载。
+    配置管理器，支持热加载和加密存储。
     使用时调用 .get() 获取当前配置，后台自动检测文件变更。
 
    用法：
@@ -99,6 +164,9 @@ class ConfigManager:
                 else:
                     merged[_GLOBAL_SECTION] = {"config_dir": os.getcwd()}
 
+                # 解析环境变量和加密存储引用
+                merged = _resolve_config_env_vars(merged)
+
                 self._config = merged
                 self._reload_count += 1
                 self._last_load_error = ""
@@ -121,6 +189,10 @@ def load_config(path: str = None) -> dict:
         merged[_GLOBAL_SECTION] = {"config_dir": os.path.dirname(os.path.abspath(path))}
     else:
         merged[_GLOBAL_SECTION] = {"config_dir": os.getcwd()}
+    
+    # 解析环境变量和加密存储引用
+    merged = _resolve_config_env_vars(merged)
+    
     return merged
 
 

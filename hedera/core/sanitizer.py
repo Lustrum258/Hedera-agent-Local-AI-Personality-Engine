@@ -1,9 +1,15 @@
 """
 Hedera 输入校验 & 沙箱机制
+使用常量配置集中管理魔法数字
 """
 
 import os
 import re
+from hedera.core.constants import (
+    MAX_COMMAND_LENGTH, MAX_TIMEOUT, MAX_OUTPUT_LENGTH,
+    BLOCKED_PATHS_READ, BLOCKED_PATHS_WRITE, BLOCKED_SHELL_COMMANDS,
+    BLOCKED_URL_SCHEMES,
+)
 
 # ─── 路径安全 ───────────
 
@@ -13,20 +19,9 @@ _ALLOWED_ROOTS = [
     os.path.expanduser("~"),
 ]
 
-# 明确禁止写入的系统路径（缩写列表，安全第一）
+# 明确禁止写入的系统路径（从常量加载）
 _BLOCKED_WRITE_PATHS = [
-    os.path.normpath(p) for p in [
-        "C:\\Windows",
-        "C:\\Program Files",
-        "C:\\Program Files (x86)",
-        "C:\\System32",
-        "C:\\Users\\Administrator\\AppData",
-        "/etc",
-        "/usr",
-        "/bin",
-        "/boot",
-        "/sys",
-    ]
+    os.path.normpath(p) for p in BLOCKED_PATHS_WRITE
 ]
 
 
@@ -73,27 +68,13 @@ def validate_write_path(path: str) -> str | None:
 
 # ─── Shell 命令安全 ───────────
 
-_BLOCKED_COMMANDS = [
-    # 危险操作
-    "shutdown", "reboot", "halt", "poweroff",
-    "format", "fdisk", "mkfs", "dd",
-    "chmod 777", "chown",
-    # 删除/破坏
-    "rm -rf", "rm -fr", "rmdir /s",
-    "del /f /s", "rd /s /q",
-    # 提权
-    "sudo ", "su ", "runas",
-    # 危险的 PowerShell
-    "Invoke-Expression",
-]
+# 从常量加载阻止的命令
+_BLOCKED_COMMANDS = BLOCKED_SHELL_COMMANDS
 
 _BLOCKED_PATTERNS = [
     r">\s*NUL",                # 重定向到 NUL
     r">\s*/dev/null",
 ]
-
-_SHELL_TIMEOUT_MAX = 600       # 最大超时上限（编码任务可能需要长时间编译）
-_SHELL_OUTPUT_MAX = 30000      # 最大输出字符数（增加以支持长编译输出）
 
 
 def validate_shell_command(cmd: str, timeout: int) -> dict | None:
@@ -107,9 +88,9 @@ def validate_shell_command(cmd: str, timeout: int) -> dict | None:
     if not cmd:
         return {"success": False, "error": "命令为空"}
 
-    # 命令长度限制
-    if len(cmd) > 2000:
-        return {"success": False, "error": "命令过长（超过 2000 字符）"}
+    # 命令长度限制（从常量加载）
+    if len(cmd) > MAX_COMMAND_LENGTH:
+        return {"success": False, "error": f"命令过长（超过 {MAX_COMMAND_LENGTH} 字符）"}
 
     # 阻止危险命令
     for blocked in _BLOCKED_COMMANDS:
@@ -121,15 +102,15 @@ def validate_shell_command(cmd: str, timeout: int) -> dict | None:
         if re.search(pat, cmd):
             return {"success": False, "error": f"阻止危险模式: {pat}"}
 
-    # 超时上限
-    if timeout > _SHELL_TIMEOUT_MAX:
-        return {"success": False, "error": f"超时不能超过 {_SHELL_TIMEOUT_MAX}s"}
+    # 超时上限（从常量加载）
+    if timeout > MAX_TIMEOUT:
+        return {"success": False, "error": f"超时不能超过 {MAX_TIMEOUT}s"}
 
     return None  # 合法
 
 
-def truncate_output(text: str, max_chars: int = _SHELL_OUTPUT_MAX) -> str:
-    """截断 shell 输出"""
+def truncate_output(text: str, max_chars: int = MAX_OUTPUT_LENGTH) -> str:
+    """截断输出（从常量加载最大长度）"""
     if len(text) > max_chars:
         return text[:max_chars] + f"\n...（已截断，仅显示前 {max_chars} 字符）"
     return text
@@ -142,12 +123,8 @@ def get_blocked_patterns() -> list[str]:
 
 # ─── URL 安全 ───────────
 
-_BLOCKED_URL_PATTERNS = [
-    r"^file://",
-    r"^javascript:",
-    r"^data:",
-    r"^ftp://",
-]
+# 从常量加载阻止的 URL 协议
+_BLOCKED_URL_PATTERNS = [f"^{re.escape(scheme)}" for scheme in BLOCKED_URL_SCHEMES]
 
 
 def validate_url(url: str) -> str | None:

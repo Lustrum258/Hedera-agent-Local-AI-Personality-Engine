@@ -12,6 +12,7 @@ import yaml
 
 # ─── 文件缓存 ───────────
 _file_cache: dict[str, tuple[float, str]] = {}  # path → (mtime, content)
+_cross_session_store = None
 
 def _cached_read(path: str) -> str:
     """读文件 + mtime 缓存。文件修改后自动失效。"""
@@ -67,26 +68,54 @@ def extract_soul_sections(soul_text: str) -> tuple[str, str]:
 def _build_cross_session_modifier(db_dir: str) -> str:
     """
     构建跨会话记忆提示段，让当前响应能引用其他会话的关键信息。
+    优先使用向量语义检索，回退到 SQL 摘要。
     """
+    global _cross_session_store
     try:
         from hedera.core.memory_store import MemoryStore
-        store = MemoryStore(db_dir, session_id="_cross_session_prompt")
-        cross = store.get_cross_session_summary(max_sessions=5, messages_per_session=1)
+        if _cross_session_store is None:
+            _cross_session_store = MemoryStore(db_dir, session_id="_cross_session_prompt")
+        store = _cross_session_store
         ltm = store.get_long_term(min_importance=4, limit=10)
 
         parts = []
 
-        # 跨会话最新动态
-        active = [c for c in cross if c.get("pairs")]
-        if active:
+        # 尝试向量语义检索（从最近的用户消息中提取查询词）
+        vector_results = []
+        try:
+            recent = store.get_recent_history(limit=3)
+            recent_user_msgs = [m["content"] for m in recent if m.get("role") == "user"]
+            if recent_user_msgs:
+                query = recent_user_msgs[-1][:200]
+                vector_results = store.search_similar_embeddings(
+                    query, limit=5, exclude_session="_cross_session_prompt"
+                )
+        except Exception:
+            pass
+
+        if vector_results:
             summary_lines = []
-            for c in active[:3]:
-                sid = c["session_id"][:12]
-                pair = c["pairs"][-1]
-                summary_lines.append(f"  [{sid}] 用户: {pair['user'][:80]}")
-            parts.append("【跨会话上下文】（最近其他会话的关键消息）：")
+            for vr in vector_results[:3]:
+                sid = vr["session_id"][:12]
+                content = vr["content"][:100]
+                sim = vr["similarity"]
+                summary_lines.append(f"  [{sid}] (相似度{sim}) {content}")
+            parts.append("【跨会话语义记忆】（与当前话题相关的历史消息）：")
             parts.extend(summary_lines)
-            parts.append("以上信息来自不同会话的记忆库，可供当前回答参考。")
+            parts.append("以上信息来自不同会话的记忆库，按语义相似度排序，可供当前回答参考。")
+        else:
+            # 回退：SQL 摘要
+            cross = store.get_cross_session_summary(max_sessions=5, messages_per_session=1)
+            active = [c for c in cross if c.get("pairs")]
+            if active:
+                summary_lines = []
+                for c in active[:3]:
+                    sid = c["session_id"][:12]
+                    pair = c["pairs"][-1]
+                    summary_lines.append(f"  [{sid}] 用户: {pair['user'][:80]}")
+                parts.append("【跨会话上下文】（最近其他会话的关键消息）：")
+                parts.extend(summary_lines)
+                parts.append("以上信息来自不同会话的记忆库，可供当前回答参考。")
 
         # 高重要性长期记忆
         important = [m for m in ltm if m["importance"] >= 6][:5]

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "hedera-agent"
-version = "0.7.0"
+version = "0.8.1"
 description = "Hedera — 有性格的 AI Agent 框架。噪声层 + 自省机制 + 工具系统。"
 readme = "README.md"
 license = {text = "MIT"}
@@ -42,6 +42,8 @@ aigc-train = ["numpy>=1.24", "scikit-learn>=1.3", "xgboost>=2.0"]
 qqbot = ["nonebot2>=2.0", "nonebot-adapter-onebot>=0.1", "httpx>=0.24"]
 # Token 计数
 tiktoken = ["tiktoken>=0.5"]
+# Harness 测试框架
+harness = ["pytest>=7.0"]
 # 全部可选依赖
 all = [
     "psutil>=5.9",
@@ -53,6 +55,7 @@ all = [
     "scikit-learn>=1.3",
     "xgboost>=2.0",
     "tiktoken>=0.5",
+    "pytest>=7.0",
 ]
 
 [project.urls]

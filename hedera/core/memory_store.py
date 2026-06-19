@@ -7,7 +7,6 @@ import sqlite3
 import json
 import datetime
 import threading
-from typing import Optional
 
 _db_lock = threading.Lock()
 
@@ -73,6 +72,17 @@ class MemoryStore:
                     size INTEGER DEFAULT 0,
                     created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
                 );
+                CREATE TABLE IF NOT EXISTS embeddings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NOT NULL,
+                    message_id INTEGER NOT NULL,
+                    content TEXT NOT NULL,
+                    vector BLOB NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+                );
+                CREATE INDEX IF NOT EXISTS idx_emb_session ON embeddings(session_id);
+                CREATE INDEX IF NOT EXISTS idx_slider_session ON slider_snapshots(session_id);
+                CREATE INDEX IF NOT EXISTS idx_filelinks_session ON file_links(session_id);
             """)
             # 迁移：旧数据库添加缺失的列
             for col in ['title', 'profile']:
@@ -103,24 +113,28 @@ class MemoryStore:
         """保存消息。return_rowid=True 时返回插入的行ID。"""
         with _db_lock:
             conn = self._get_conn()
-            if role == "user":
-                cur = conn.execute("SELECT title, message_count FROM sessions WHERE session_id = ?", (self.session_id,))
-                row = cur.fetchone()
-                if row and not row["title"] and row["message_count"] == 0 and content.strip():
-                    title = content.strip()[:40]
-                    if len(content.strip()) > 40:
-                        title += "..."
-                    conn.execute("UPDATE sessions SET title = ? WHERE session_id = ?", (title, self.session_id))
-            conn.execute(
-                "INSERT INTO messages (session_id, role, content, task_type) VALUES (?, ?, ?, ?)",
-                (self.session_id, role, content, task_type)
-            )
-            conn.execute("UPDATE sessions SET message_count = message_count + 1 WHERE session_id = ?",
-                         (self.session_id,))
-            conn.commit()
-            last_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-            conn.close()
-            return last_id if return_rowid else 0
+            try:
+                if role == "user":
+                    cur = conn.execute("SELECT title, message_count FROM sessions WHERE session_id = ?", (self.session_id,))
+                    row = cur.fetchone()
+                    if row and not row["title"] and row["message_count"] == 0:
+                        stripped = content.strip()
+                        if stripped:
+                            title = stripped[:40]
+                            if len(stripped) > 40:
+                                title += "..."
+                            conn.execute("UPDATE sessions SET title = ? WHERE session_id = ?", (title, self.session_id))
+                conn.execute(
+                    "INSERT INTO messages (session_id, role, content, task_type) VALUES (?, ?, ?, ?)",
+                    (self.session_id, role, content, task_type)
+                )
+                conn.execute("UPDATE sessions SET message_count = message_count + 1 WHERE session_id = ?",
+                             (self.session_id,))
+                conn.commit()
+                last_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+                return last_id if return_rowid else 0
+            finally:
+                conn.close()
 
     def save_message_pair(self, user_msg: str, assistant_msg: str, user_task: str = "unknown", assistant_task: str = "unknown"):
         """原子保存一对用户/助手消息。要么都存上，要么都不存。"""
@@ -448,6 +462,113 @@ class MemoryStore:
                 value=json.dumps(j, ensure_ascii=False),
                 category="noise_jumps", importance=3
             )
+
+    # ─── 向量记忆检索 ───
+
+    def index_message_embedding(self, session_id: str, message_id: int, content: str):
+        """为一条消息生成并存储 embedding 向量。仅对用户消息索引。"""
+        if not content or len(content.strip()) < 5:
+            return
+        try:
+            from hedera.core.embedding import embed, pack_vector
+            vec = embed(content)
+            packed = pack_vector(vec)
+            with _db_lock:
+                conn = self._get_conn()
+                try:
+                    conn.execute(
+                        "INSERT OR REPLACE INTO embeddings (session_id, message_id, content, vector) VALUES (?, ?, ?, ?)",
+                        (session_id, message_id, content[:500], packed)
+                    )
+                    conn.commit()
+                finally:
+                    conn.close()
+        except Exception:
+            pass
+
+    def search_similar_embeddings(self, query: str, limit: int = 5, exclude_session: str = None) -> list[dict]:
+        """语义搜索：返回与 query 最相似的消息，按相似度降序。"""
+        try:
+            from hedera.core.embedding import embed, pack_vector, cosine_similarity, unpack_vector
+            query_vec = embed(query)
+        except Exception:
+            return []
+
+        conn = self._get_conn()
+        try:
+            if exclude_session:
+                rows = conn.execute(
+                    "SELECT session_id, message_id, content, vector FROM embeddings WHERE session_id != ? ORDER BY id DESC LIMIT 500",
+                    (exclude_session,)
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT session_id, message_id, content, vector FROM embeddings ORDER BY id DESC LIMIT 500"
+                ).fetchall()
+
+            scored = []
+            for row in rows:
+                try:
+                    vec = unpack_vector(row["vector"])
+                    sim = cosine_similarity(query_vec, vec)
+                    if sim > 0.05:
+                        scored.append({
+                            "session_id": row["session_id"],
+                            "message_id": row["message_id"],
+                            "content": row["content"],
+                            "similarity": round(sim, 4),
+                        })
+                except Exception:
+                    continue
+
+            scored.sort(key=lambda x: x["similarity"], reverse=True)
+            return scored[:limit]
+        finally:
+            conn.close()
+
+    def backfill_embeddings(self, max_messages: int = 200):
+        """为历史用户消息补建 embedding 索引。"""
+        try:
+            from hedera.core.embedding import embed, pack_vector
+        except Exception:
+            return 0
+
+        conn = self._get_conn()
+        try:
+            # 找出已有 embedding 的 message_id
+            existing = set()
+            for row in conn.execute("SELECT message_id FROM embeddings").fetchall():
+                existing.add(row["message_id"])
+
+            # 取最近的用户消息
+            rows = conn.execute(
+                "SELECT id, session_id, content FROM messages WHERE role = 'user' ORDER BY id DESC LIMIT ?",
+                (max_messages,)
+            ).fetchall()
+
+            count = 0
+            for row in rows:
+                if row["id"] in existing:
+                    continue
+                content = row["content"]
+                if not content or len(content.strip()) < 5:
+                    continue
+                try:
+                    vec = embed(content)
+                    packed = pack_vector(vec)
+                    conn.execute(
+                        "INSERT INTO embeddings (session_id, message_id, content, vector) VALUES (?, ?, ?, ?)",
+                        (row["session_id"], row["id"], content[:500], packed)
+                    )
+                    count += 1
+                except Exception:
+                    continue
+
+            if count > 0:
+                conn.commit()
+            return count
+        finally:
+            conn.close()
 
     def close_session(self):
         with _db_lock:

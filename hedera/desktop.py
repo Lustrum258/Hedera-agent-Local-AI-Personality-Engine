@@ -20,6 +20,21 @@ if not os.path.exists(CONFIG_PATH):
 
 
 def start_server():
+    # 初始化安全组件
+    from hedera.core.init import init_security, cleanup_security
+    from hedera.config import get_data_dir, load_config
+    
+    config = load_config(CONFIG_PATH)
+    data_dir = get_data_dir(config)
+    
+    # 初始化安全组件
+    init_security(data_dir)
+    
+    # 注册清理函数
+    import atexit
+    atexit.register(cleanup_security)
+    
+    # 启动服务器
     from hedera.server.http import run_server
     run_server(CONFIG_PATH)
 

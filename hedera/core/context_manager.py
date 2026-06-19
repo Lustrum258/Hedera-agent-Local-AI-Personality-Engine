@@ -3,10 +3,15 @@
 解决两个问题：
 1. 上下文拼接时智能截断，不超出模型窗口
 2. 实时统计已使用的 token 数量
+使用常量配置集中管理魔法数字
 """
 
 import json
 from typing import Optional
+from hedera.core.constants import (
+    DEFAULT_CONTEXT_WINDOW, DEFAULT_MAX_TOKENS,
+    HISTORY_LIMIT_SIMPLE, HISTORY_LIMIT_COMPLEX,
+)
 
 try:
     import tiktoken
@@ -81,8 +86,8 @@ def build_context_messages(
     history: list[dict],
     user_message: str,
     extra_messages: list[dict] = None,
-    max_context_tokens: int = 128000,
-    reserve_for_response: int = 8192,
+    max_context_tokens: int = DEFAULT_CONTEXT_WINDOW,
+    reserve_for_response: int = DEFAULT_MAX_TOKENS,
     tools_text: str = "",
 ) -> tuple[list[dict], ContextStats]:
     """
@@ -149,8 +154,9 @@ def build_context_messages(
         if current_tokens + msg_tokens > history_budget:
             dropped += 1
             continue
-        selected_history.insert(0, msg)
+        selected_history.append(msg)
         current_tokens += msg_tokens
+    selected_history.reverse()
 
     stats.history_tokens = current_tokens
     stats.messages_included = len(selected_history)
@@ -161,8 +167,10 @@ def build_context_messages(
     # 组装最终消息列表
     msgs = [{"role": "system", "content": system_text}]
 
-    # 插入历史消息
-    for h in selected_history:
+    # 插入历史消息（排除最后一条与当前用户消息相同的消息，避免重复）
+    for i, h in enumerate(selected_history):
+        if i == len(selected_history) - 1 and h["role"] == "user" and h["content"] == user_message:
+            continue
         msgs.append({"role": h["role"], "content": h["content"]})
 
     # 插入额外消息
@@ -176,7 +184,7 @@ def build_context_messages(
 
 
 def estimate_max_context(model_name: str) -> int:
-    """根据模型名估算上下文窗口大小"""
+    """根据模型名估算上下文窗口大小（使用常量配置的默认值）"""
     model_lower = model_name.lower()
 
     # 常见模型的上下文窗口
@@ -205,8 +213,8 @@ def estimate_max_context(model_name: str) -> int:
         if key in model_lower:
             return window
 
-    # 默认保守估计
-    return 32000
+    # 默认保守估计（从常量加载）
+    return DEFAULT_CONTEXT_WINDOW
 
 
 # ─── 全局统计（供 API 查询） ───

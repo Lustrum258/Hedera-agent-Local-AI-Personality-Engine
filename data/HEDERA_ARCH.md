@@ -15,7 +15,17 @@ hedera/
     experience.py   — Experience distillation
     cache.py        — LRU cache (search, fetch, file)
     sanitizer.py    — Input validation, path safety, command filtering
+    code_checker.py — Python AST security checker
+    sandbox.py      — Code execution sandbox
     logger.py       — Structured logging and metrics
+  harness/
+    __init__.py     — Harness module initialization
+    runner.py       — Test runner, test cases, test results
+    evaluator.py    — Response quality evaluation, metrics
+    monitor.py      — Runtime monitoring, tracing, replay
+    sandbox.py      — Enhanced sandbox with policy levels
+    reporter.py     — Report generation (JSON/Markdown/HTML)
+    cli.py          — CLI interface for harness commands
   server/
     http.py         — HTTP server, all API endpoints
     static/index_v2.html — Frontend (single file, inline CSS/JS)
@@ -63,3 +73,37 @@ Configurable via `config.yaml` `model.context_window`. Falls back to model name 
 ## Configuration
 
 `config.yaml` structure: model, image_gen, tts, search, server, training, plugin, skills, paths (includes workspace).
+
+## Harness System
+
+Comprehensive testing, security, monitoring, and evaluation framework.
+
+### Components
+- **Test Runner**: Automated testing of Agent behavior, tool calls, persona consistency
+- **Evaluator**: Standardized evaluation of response quality, persona consistency, safety
+- **Monitor**: Runtime monitoring, tracing, replay of Agent decision process
+- **Enhanced Sandbox**: Enhanced security sandbox with policy levels (strict/moderate/permissive)
+- **Reporter**: Test report generation (JSON/Markdown/HTML)
+
+### CLI Commands
+```bash
+hedera harness init                    # Initialize test suite template
+hedera harness run -f tests.json       # Run test suite
+hedera harness eval -m "input" -r "response"  # Evaluate response
+hedera harness sandbox -c "code"       # Execute in sandbox
+hedera harness report -f json          # Generate report
+hedera harness monitor                 # Start monitoring mode
+```
+
+### Test Cases
+JSON format with fields: id, name, category, input_message, expected_output, expected_tools, expected_persona_traits, forbidden_patterns, max_latency_ms, tags, priority.
+
+### Evaluation Metrics
+- Relevance (weight 2.0)
+- Coherence (weight 1.5)
+- Persona Consistency (weight 2.0)
+- Safety (weight 3.0)
+- Tool Accuracy (weight 1.5)
+- Response Quality (weight 1.5)
+- Latency (weight 1.0)
+- Token Efficiency (weight 0.5)

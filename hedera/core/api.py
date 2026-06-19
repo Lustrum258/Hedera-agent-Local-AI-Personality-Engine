@@ -12,53 +12,48 @@ _last_api_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0
 _usage_lock = threading.Lock()
 
 
-def _call_api(messages: list, config: dict, temperature_override: float = None, tools: list = None, max_retries: int = 2, max_tokens_override: int = 0) -> dict:
-    """
-    调用 LLM API。
-    - 工具列表 (`tools`) 一次性构建在 body 中，不存在遗漏
-    - 自动重试（指数退避，最多 max_retries 次）
-    - 指标记录
-    """
-    from hedera.core.logger import METRICS, Timer
-    _timer = Timer()
+def _build_body(messages: list, config: dict, temperature_override: float = None, tools: list = None, max_tokens_override: int = 0, stream: bool = False) -> tuple:
+    """构建请求 body 和 headers，供 _call_api / _call_api_stream 共用。"""
     model_cfg = config.get("model", {})
     api_key = model_cfg.get("api_key", "") or os.environ.get(model_cfg.get("api_key_env", "HEDERA_API_KEY"), "")
     temp = temperature_override if temperature_override is not None else model_cfg.get("temperature", 0.7)
     endpoint = model_cfg.get("endpoint", "https://api.deepseek.com/chat/completions")
     model_name = model_cfg.get("name", "deepseek-chat")
-
     default_max = model_cfg.get("max_tokens", 4096)
-    if max_tokens_override:
-        effective_max = max_tokens_override
-    else:
-        effective_max = default_max
+    effective_max = max_tokens_override if max_tokens_override else default_max
 
-    # 一次性构建 body（tools 始终包含，空 list 传给 API 也没问题）
-    body_payload = {
+    body = {
         "model": model_name,
         "messages": messages,
         "temperature": temp,
         "max_tokens": effective_max,
+        "stream": stream,
     }
     if tools:
-        body_payload["tools"] = tools
+        body["tools"] = tools
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    return body, headers, endpoint
+
+
+def _call_api(messages: list, config: dict, temperature_override: float = None, tools: list = None, max_retries: int = 2, max_tokens_override: int = 0) -> dict:
+    """
+    调用 LLM API（非流式）。
+    - 自动重试（指数退避，最多 max_retries 次）
+    - 指标记录
+    """
+    from hedera.core.logger import METRICS, Timer
+    _timer = Timer()
+    body_payload, headers, endpoint = _build_body(messages, config, temperature_override, tools, max_tokens_override, stream=False)
     last_exception = None
-    for attempt in range(1, max_retries + 1):  # 重试 max_retries 次
+    for attempt in range(1, max_retries + 1):
         try:
             import requests as _requests
-            resp = _requests.post(
-                endpoint,
-                json=body_payload,
-                headers={"Authorization": f"Bearer {api_key}"},
-                timeout=300,
-            )
+            resp = _requests.post(endpoint, json=body_payload, headers=headers, timeout=300)
             data = resp.json()
             METRICS.record_api_call(success=True, latency=_timer.elapsed())
-            # 捕获 API 返回的 token 用量
             if "usage" in data and isinstance(data["usage"], dict):
                 with _usage_lock:
                     _last_api_usage.update(data["usage"])
-            # 提取 API 错误信息
             if "error" in data:
                 err = data["error"]
                 if isinstance(err, dict):
@@ -68,7 +63,6 @@ def _call_api(messages: list, config: dict, temperature_override: float = None, 
                 raise ValueError(f"API 错误 ({resp.status_code}): {err_msg}")
             if "choices" in data and len(data["choices"]) > 0:
                 msg = data["choices"][0]["message"]
-                # 防御：某些 API 返回 message 为字符串而非 dict
                 if isinstance(msg, str):
                     msg = {"content": msg, "tool_calls": None}
                 return msg
@@ -83,6 +77,99 @@ def _call_api(messages: list, config: dict, temperature_override: float = None, 
                 time.sleep(wait)
 
     return {"content": f"[Hedera API Error] {last_exception}", "tool_calls": None}
+
+
+def _call_api_stream(messages: list, config: dict, temperature_override: float = None, tools: list = None, max_retries: int = 2, max_tokens_override: int = 0):
+    """
+    流式调用 LLM API（SSE）。
+    生成器，逐块 yield：
+      {"type": "token", "content": "..."}         — 文本 token
+      {"type": "tool_calls", "tool_calls": [...]}  — 工具调用增量
+      {"type": "usage", "usage": {...}}            — token 用量
+      {"type": "done"}                             — 流结束
+      {"type": "error", "error": "..."}            — 错误
+    """
+    from hedera.core.logger import METRICS, Timer
+    _timer = Timer()
+    body_payload, headers, endpoint = _build_body(messages, config, temperature_override, tools, max_tokens_override, stream=True)
+
+    for attempt in range(1, max_retries + 1):
+        try:
+            import requests as _requests
+            resp = _requests.post(endpoint, json=body_payload, headers=headers, timeout=300, stream=True)
+            resp.raise_for_status()
+            resp.encoding = "utf-8"
+
+            collected_content = ""
+            collected_tool_calls = {}  # index -> {id, type, function: {name, arguments}}
+
+            for line in resp.iter_lines(decode_unicode=True):
+                if not line:
+                    continue
+                line = line.strip()
+                if line == "data: [DONE]":
+                    break
+                if not line.startswith("data: "):
+                    continue
+                json_str = line[6:]
+                try:
+                    chunk = json.loads(json_str)
+                except json.JSONDecodeError:
+                    continue
+
+                # usage 信息（部分 API 在最后一个 chunk 返回）
+                if "usage" in chunk and isinstance(chunk["usage"], dict):
+                    with _usage_lock:
+                        _last_api_usage.update(chunk["usage"])
+                    yield {"type": "usage", "usage": chunk["usage"]}
+
+                choices = chunk.get("choices", [])
+                if not choices:
+                    continue
+                delta = choices[0].get("delta", {})
+
+                # 文本 token
+                if "content" in delta and delta["content"]:
+                    collected_content += delta["content"]
+                    yield {"type": "token", "content": delta["content"]}
+
+                # 工具调用增量
+                if "tool_calls" in delta and delta["tool_calls"]:
+                    for tc in delta["tool_calls"]:
+                        idx = tc.get("index", 0)
+                        if idx not in collected_tool_calls:
+                            collected_tool_calls[idx] = {
+                                "id": tc.get("id", f"call_{idx}"),
+                                "type": "function",
+                                "function": {"name": "", "arguments": ""},
+                            }
+                        if tc.get("id"):
+                            collected_tool_calls[idx]["id"] = tc["id"]
+                        fn = tc.get("function", {})
+                        if fn.get("name"):
+                            collected_tool_calls[idx]["function"]["name"] = fn["name"]
+                        if fn.get("arguments"):
+                            collected_tool_calls[idx]["function"]["arguments"] += fn["arguments"]
+
+            METRICS.record_api_call(success=True, latency=_timer.elapsed())
+
+            # 组装最终结果
+            result = {"content": collected_content, "tool_calls": None}
+            if collected_tool_calls:
+                tc_list = [collected_tool_calls[i] for i in sorted(collected_tool_calls.keys())]
+                result["tool_calls"] = tc_list
+            yield {"type": "done", "result": result}
+            return
+
+        except Exception as e:
+            last_exception = e
+            METRICS.record_api_call(success=False, latency=_timer.elapsed())
+            if attempt < max_retries:
+                wait = min(2 ** attempt, 30)
+                _timer.reset()
+                time.sleep(wait)
+
+    yield {"type": "error", "error": str(last_exception)}
 
 
 def _try_parse_xml_toolcall(content: str) -> list | None:
